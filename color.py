@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from enum import IntEnum
 import re
+from enum import IntEnum
 
 class Color(IntEnum):
     BLACK = 0

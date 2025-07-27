@@ -1,7 +1,5 @@
 class ChessPiece:
-    """Meant to be superceded by a subclass for each type of piece.
-
-    It should be noted that because we're (trying to) use the Unicode
+    """It should be noted that because we're (trying to) use the Unicode
     glyphs for terminal representation of chess pieces, the light
     pieces will appear dark and vice-versa.  However, just flipping
     them to have the visually correct appearance won't work because
@@ -16,6 +14,7 @@ class ChessPiece:
     symbol = 'X' # For usage in move notation; should be overridden by subclass
     
     def __init__(self, color: str | None = None):
+        """Meant to be superceded by a subclass for each type of piece."""
         if color is None:
             raise ValueError( "Color must be specified for ChessPiece" )
         elif color not in [ 'light', 'dark' ]:
@@ -94,3 +93,13 @@ class King(ChessPiece):
     def __init__(self, color: str):
         super().__init__(color)
 
+def main():
+    p = [
+            Queen('light'),
+            King('dark')
+            ]
+    for _ in p:
+        print( f'{_} is a {repr(_)}.' )
+
+if __name__ == '__main__':
+    main()

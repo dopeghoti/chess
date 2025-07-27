@@ -5,13 +5,13 @@ class Square:
     def __init__(self, color: str | None = None, file: str | None = None, rank: int | None = None ):
         if not all( [ color, file, rank ] ):
             raise ValueError( f"Color, file, and rank must be specified for Square.  {color=}, {file=}, {rank=}" )
-        if color.lower() not in [ 'light', 'dark' ]:
+        if color.lower() not in [ 'light', 'dark' ]: # type: ignore (suppress Pylance warning for str we know by now is not None)
             raise ValueError( f"Color must be either 'light' or 'dark'.  {color=}." )
-        if rank - 1 not in range( 8 ):
+        if int(rank) - 1 not in range( 8 ): # type: ignore (suppress Pylance warning for int we know by now is not None)
             raise ValueError( f"Rank must be between 1 and 8.  {rank=}" )
-        if file.lower() not in 'abcdefgh':
+        if file.lower() not in 'abcdefgh': # type: ignore (suppress Pylance warning for str we know by now is not None)
             raise ValueError( f"File must be one of 'a' to 'h'.  {file=}" )
-        self.color, self.file, self.rank, self.occupant = color.lower(), file.lower(), rank, None
+        self.color, self.file, self.rank, self.occupant = color.lower(), file.lower(), rank, None # type: ignore (suppress Pylance warnings for types we know by now are not None)
 
     def is_occupied(self) -> bool:
         """Check if the square is occupied by a chess piece."""
@@ -87,6 +87,12 @@ class ChessBoard:
             if square.is_occupied():
                 square.remove()
 
+    def get_piece(self, square_key: str) -> ChessPiece | None:
+        """Get the chess piece at the specified square."""
+        if square_key not in self.squares:
+            raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
+        return self.squares[square_key].contains()
+
     def setup(self):
         """Set up the chess board with the initial positions of the pieces."""
         self.clear()
@@ -135,3 +141,10 @@ class ChessBoard:
         game_board += '    A  B  C  D  E  F  G  H \n'
         return game_board
 
+def main():
+    b = ChessBoard()
+    b.setup()
+    print( b ) 
+
+if __name__ == '__main__':
+    main()

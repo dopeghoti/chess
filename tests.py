@@ -51,7 +51,7 @@ class TestChessPieces(unittest.TestCase):
         # CORRECTED: Calling a subclass without the required 'color' argument 
         # should raise a TypeError.
         with self.assertRaises(TypeError):
-            Knight()
+            Knight() # type: ignore since Pylance doesn't like raising excpetions in purpose
 
         # Instantiating any piece with an invalid color should still fail with a ValueError
         with self.assertRaisesRegex(ValueError, "Color must be either 'light' or 'dark'"):
@@ -210,12 +210,12 @@ class TestChessBoard(unittest.TestCase):
     def test_board_setup(self):
         self.board.setup()
         # Test a few key pieces
-        self.assertIsInstance(self.board.squares['a1'].occupant, Rook)
-        self.assertEqual(self.board.squares['a1'].occupant.color, 'light')
-        self.assertIsInstance(self.board.squares['e8'].occupant, King)
-        self.assertEqual(self.board.squares['e8'].occupant.color, 'dark')
-        self.assertIsInstance(self.board.squares['d2'].occupant, Pawn)
-        self.assertIsNone(self.board.squares['d4'].occupant)
+        self.assertIsInstance(self.board.get_piece('a1'), Rook)
+        self.assertEqual(self.board.get_piece('a1').color, 'light') # type: ignore
+        self.assertIsInstance(self.board.get_piece('e8'), King)
+        self.assertEqual(self.board.get_piece('e8').color, 'dark') # type: ignore
+        self.assertIsInstance(self.board.get_piece('d2'), Pawn)
+        self.assertIsNone(self.board.get_piece('d4'))
 
     def test_clear_board(self):
         self.board.setup()
