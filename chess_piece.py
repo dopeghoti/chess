@@ -56,6 +56,7 @@ class Rook(ChessPiece):
     symbol = 'R'
     def __init__(self, color: str):
         super().__init__(color)
+        self.has_moved = False  # Track if the rook has moved for castling purposes
 
 class Knight(ChessPiece):
     """Represents a knight chess piece."""
@@ -92,6 +93,8 @@ class King(ChessPiece):
     symbol = 'K'
     def __init__(self, color: str):
         super().__init__(color)
+        self.has_moved = False  # Track if the king has moved for castling purposes
+        self_has_Been_in_check = False  # Track if the king has been in check at any point for castling purposes
 
 def main():
     p = [
