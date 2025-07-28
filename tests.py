@@ -206,7 +206,6 @@ class TestChessBoard(unittest.TestCase):
         self.assertEqual(self.board.squares['h8'].color, 'dark')
         self.assertEqual(self.board.squares['a8'].color, 'light')
 
-
     def test_board_setup(self):
         self.board.setup()
         # Test a few key pieces
@@ -222,6 +221,23 @@ class TestChessBoard(unittest.TestCase):
         self.board.clear()
         for square in self.board.squares.values():
             self.assertIsNone(square.occupant)
+
+    def test_board_moving_pieces(self):
+        self.board.setup()
+        self.board.move_piece( self.board['a1'], self.board['d4'] )
+        self.board.move_piece( self.board['h1'], self.board['e4'] )
+        self.board.move_piece( self.board['a8'], self.board['d5'] )
+        self.board.move_piece( self.board['h8'], self.board['e5'] )
+        self.assertIsNot( any( ( 
+            self.board['a1'].is_occupied(), 
+            self.board['h1'].is_occupied() ) ), 
+            self.board['a8'].is_occupied(), 
+            self.board['h8'].is_occupied() )
+        self.assertIsInstance(self.board.get_piece('d4'), Rook)
+        self.assertIsInstance(self.board.get_piece('e4'), Rook)
+        self.assertIsInstance(self.board.get_piece('d5'), Rook)
+        self.assertIsInstance(self.board.get_piece('e5'), Rook)
+
 
 
 if __name__ == "__main__":

@@ -38,6 +38,27 @@ class ChessPiece:
 
     def __hash__( self ):
         return hash( ( self.color, self.name ) )
+    
+    def raise_moved_flag( self ) -> None:
+        """Set the has_moved flag to True.  This is used for castling."""
+        if hasattr( self, 'has_moved' ):
+            self.has_moved = True
+        else:
+            raise AttributeError( f"{self} does not have a 'has_moved' attribute." )
+    
+    def raise_passant_flag( self ) -> None:
+        """Set the vulnerable flag to True.  This is used for en passant."""
+        if hasattr( self, 'vulnerable' ):
+            self.vulnerable = True
+        else:
+            raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
+        
+    def lower_passant_flag( self ) -> None:
+        """Set the vulnerable flag to False.  This is used for en passant."""
+        if hasattr( self, 'vulnerable' ):
+            self.vulnerable = False
+        else:
+            raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
 
 class Pawn(ChessPiece):
     """Represents a pawn chess piece."""
@@ -47,6 +68,7 @@ class Pawn(ChessPiece):
     symbol = ''
     def __init__(self, color: str):
         super().__init__(color)
+        self.vulnerable = False  # Track if the pawn can be captured en passant
 
 class Rook(ChessPiece):
     """Represents a rook chess piece."""
@@ -94,7 +116,7 @@ class King(ChessPiece):
     def __init__(self, color: str):
         super().__init__(color)
         self.has_moved = False  # Track if the king has moved for castling purposes
-        self_has_Been_in_check = False  # Track if the king has been in check at any point for castling purposes
+        self.has_been_in_check = False  # Track if the king has been in check at any point for castling purposes
 
 def main():
     p = [

@@ -12,6 +12,7 @@ class Square:
         if file.lower() not in 'abcdefgh': # type: ignore (suppress Pylance warning for str we know by now is not None)
             raise ValueError( f"File must be one of 'a' to 'h'.  {file=}" )
         self.color, self.file, self.rank, self.occupant = color.lower(), file.lower(), rank, None # type: ignore (suppress Pylance warnings for types we know by now are not None)
+        self.key = f"{self.file.lower()}{self.rank}"
 
     def is_occupied(self) -> bool:
         """Check if the square is occupied by a chess piece."""
@@ -59,6 +60,7 @@ class Square:
         else:
             piece = ' '
         return fgc( f' {piece} ', fgc, bgc, True )
+    
 
 class ChessBoard:
     def __init__(self):
@@ -81,17 +83,38 @@ class ChessBoard:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         self.squares[square_key].place(piece)
 
-    def clear(self):
-        """Reset the chess board by removing all pieces."""
-        for square in self.squares.values():
-            if square.is_occupied():
-                square.remove()
+    def __getitem__( self, square_key: str ) -> Square:
+        """Get the square at the specified key."""
+        if square_key not in self.squares:
+            raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
+        return self.squares[square_key]
 
     def get_piece(self, square_key: str) -> ChessPiece | None:
         """Get the chess piece at the specified square."""
         if square_key not in self.squares:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         return self.squares[square_key].contains()
+
+    def move_piece( self, from_square: Square, to_square: Square ) -> None:
+        """Move a piece from one Square to another.
+        
+        This ls literally just moving the piece, it is not a Chess Move and does not
+        validate game logic or rules.  That will be handled by ChessMove.
+        """
+        if not isinstance(from_square, Square) or not isinstance(to_square, Square):
+            raise TypeError("from_square and to_square must be instances of Square.")
+        if not from_square.is_occupied():
+            raise ValueError(f"No piece on {from_square} to move.")
+        if to_square.is_occupied():
+            raise ValueError(f"Cannot move to {to_square}. It is already occupied by {to_square.contains()}.")
+        
+        to_square.place( from_square.remove() )
+
+    def clear(self):
+        """Reset the chess board by removing all pieces."""
+        for square in self.squares.values():
+            if square.is_occupied():
+                square.remove()
 
     def setup(self):
         """Set up the chess board with the initial positions of the pieces."""
