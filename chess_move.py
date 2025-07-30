@@ -46,6 +46,33 @@ class ChessMove:
 
         return True
 
+    def validate_piece_movement( self ) -> bool:
+        """Validation for the actual move, with chess game rule logic"""
+        moving_player = self.board.turn
+        passive_player = 'light' if moving_player == 'dark' else 'dark'
+
+        # Is the destination in the Piece's movement pattern? (or capture pattern for ChessCapture)
+        # TODO: check that this works properly for all pieces, especially sliding pieces.
+        if self.to_square.key not in [ key for key in self.board.get_legal_moves( self.from_square.key ) ]:
+            return False
+            # raise ValueError(f'Cannot move {self.from_square.contains()} from {self.from_square} to {self.to_square}. It is not a valid move.')
+        # Alternative for ChessCapture override: return only Squares occupied by passive_player's ChessPieces.
+
+        # Cannot move a King into check
+        if isinstance( self.from_square.contains(), King ):
+            if self.board.is_in_check_from( self.to_square, passive_player ):
+                return False
+
+        # Cannot move if the move would be a discovered check
+        # TODO: this
+        # Possible means: Make a duplicate board, _force_ the move, and then determine whether the moving_player's King is in check?
+        # Possibly move validate_discovered_check() into a new function since we need to do this for every type of move.
+        # We will also have to override this for ChessCapture for pawns: the move is to capture laterally but we can only do so if
+        # the space in the corresponding Square in the movement_pattern is open to move into.
+
+        # If all of the validation checks pass, return True
+        return True
+
     def validate( self ) -> bool:
         """Validates the move according to chess rules (eventually)."""
         # This is a placeholder for move validation logic.
@@ -58,7 +85,7 @@ class ChessMove:
         # TODO: handle castling, en passant, promotion, etc.
         # TODO: implement ChessBoard.move() to handle moving a piece (NOT to be confused with a chess move)
 
-        return all( ( self.validate_origin_constraints(), self.validate_other_constraints() ) )
+        return all( ( self.validate_origin_constraints(), self.validate_other_constraints(), self.validate_piece_movement() ) )
     
     def execute(self) -> None | ChessPiece:
         """Executes the move if it is valid."""

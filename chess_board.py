@@ -1,5 +1,6 @@
 from chess_piece import *
 from color import Color as C
+from typing import Optional
 
 class Square:
     def __init__(self, color: str | None = None, file: str | None = None, rank: int | None = None ):
@@ -18,7 +19,7 @@ class Square:
         """Check if the square is occupied by a chess piece."""
         return self.occupant is not None
 
-    def contains(self) -> ChessPiece | None:
+    def contains(self) -> Optional[ChessPiece]:
             return self.occupant
 
     def place( self, piece: ChessPiece ) -> None:
@@ -39,6 +40,7 @@ class Square:
 
     def promote( self, new_piece_class: type[ChessPiece] = Queen ) -> None:
         """If there is a Pawn on square, promote it to a higher piece."""
+        # TODO: Move this to the Pawn ChessPiece, and a companion piece into ChessMove
         if self.occupant is None:
             raise ValueError( "Square is empty. Cannot promote a piece.")
         if not isinstance(self.occupant, Pawn):
@@ -72,8 +74,17 @@ class ChessBoard:
                 for file in 'abcdefgh' for rank in range(1, 9)
                 }
         self.turn = 'light'
+        self.half_turns = 0
+        self.game_states = {}
 
     def end_turn( self ) -> None:
+        # When ending a side's half-turn, we need to reset the en passant flag for all pawns of that side.
+        for _ in self.squares.values():
+            piece = _.contains()
+            if isinstance(piece, Pawn) and piece.color == self.turn:
+                piece.lower_passant_flag()
+        self.half_turns += 1
+        self.game_states[self.half_turns]= dict( self.squares ) # Ensure this is a _copy_ and not a _reference_ by forcing creation of a fresh dict
         self.turn = 'light' if self.turn == 'dark' else 'dark'
 
     def place_piece(self, piece: ChessPiece, file: str, rank: int) -> None:
@@ -89,11 +100,87 @@ class ChessBoard:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         return self.squares[square_key]
 
-    def get_piece(self, square_key: str) -> ChessPiece | None:
+    def get_piece(self, square_key: str) -> Optional[ChessPiece]:
         """Get the chess piece at the specified square."""
         if square_key not in self.squares:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         return self.squares[square_key].contains()
+
+    def get_legal_moves( self, square_key: str ) -> list[Square]:
+        """Get all legal moves for the piece on the specified square.
+        Captures are NOT included in the list of legal moves, only moves to empty squares."""
+        if square_key not in self.squares:
+            raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
+        piece = self.squares[square_key].contains()
+        if piece is None:
+            return []  # No piece on the square, no legal moves
+        
+        # Get the piece's movement pattern and translate it to squares
+        legal_moves = []
+        for move in piece.get_move_pattern():
+            target_file_ord = ord(square_key[0]) + move[0]
+            target_rank = int(square_key[1]) + move[1]
+            if 97 <= target_file_ord <= 104 and 1 <= target_rank <= 8:
+                target_square_key = f"{chr(target_file_ord)}{target_rank}"
+                target_square = self.squares[target_square_key]
+                if not target_square.is_occupied(): # Occupied squares are not legal moves
+                    legal_moves.append(target_square)
+            if piece.is_sliding_piece():
+                # For sliding pieces, we need to check all squares in the direction of movement
+                step_file_ord = ord(square_key[0]) + move[0]
+                step_rank = int(square_key[1]) + move[1]
+                while 97 <= step_file_ord <= 104 and 1 <= step_rank <= 8:
+                    step_square_key = f"{chr(step_file_ord)}{step_rank}"
+                    step_square = self.squares[step_square_key]
+                    if not step_square.is_occupied():
+                        legal_moves.append(step_square)
+                    else:
+                        break
+                    step_file_ord += move[0]
+                    step_rank += move[1]
+        # Remove duplicates and return the list of legal moves
+        return list(set(legal_moves))
+    
+        def get_legal_captures( self, square_key: str ) -> list[Square]:
+            """Get all legal captures for the piece on the specified square."""
+            if square_key not in self.squares:
+                raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
+            piece = self.squares[square_key].contains()
+            if piece is None:
+                return [] # No piece on the square, no legal captures
+            
+            # Get the piece's capture pattern and translate it to squares
+            legal_captures = []
+            for capture in piece.get_capture_pattern():
+                target_file_ord = ord(square_key[0]) + capture[0]
+                target_rank = int(square_key[1]) + capture[1]
+                if 97 <= target_file_ord <= 104 and 1 <= target_rank <= 8:
+                    target_square_key = f"{chr(target_file_ord)}{target_rank}"
+                    target_square = self.squares[target_square_key]
+                    if target_square.is_occupied() and target_square.contains().color != piece.color:
+                        # If we are capturing with a Pawn, and the capture is en passant,
+                        # we need to check if the target square is vulnerable
+                        if isinstance(piece, Pawn) and capture in [(-1, 0), (1, 0)]:
+                            if target_square.contains().vulnerable:
+                                legal_captures.append(target_square)
+                        else:
+                            legal_captures.append(target_square)
+                if piece.is_sliding_piece():
+                    # For sliding pieces, we need to check all squares in the direction of capture
+                    step_file_ord = ord(square_key[0]) + capture[0]
+                    step_rank = int(square_key[1]) + capture[1]
+                    while 97 <= step_file_ord <= 104 and 1 <= step_rank <= 8:
+                        step_square_key = f"{chr(step_file_ord)}{step_rank}"
+                        step_square = self.squares[step_square_key]
+                        if step_square.is_occupied() and step_square.contains().color != piece.color:
+                            legal_captures.append(step_square)
+                            break
+                        elif step_square.is_occupied():
+                            break
+                        step_file_ord += capture[0]
+                        step_rank += capture[1]
+            # Remove duplicates and return the list of legal captures
+            return list(set(legal_captures))
 
     def move_piece( self, from_square: Square, to_square: Square ) -> None:
         """Move a piece from one Square to another.
@@ -121,6 +208,8 @@ class ChessBoard:
         self.clear()
         # Light always goes first.
         self.turn = 'light'
+        self.half_turns = 0
+        self.game_states = {}
 
         # place Pawns
         for file in 'abcdefgh':
@@ -152,6 +241,53 @@ class ChessBoard:
         # place Kings
         self.place_piece(King('light'), 'e', 1)
         self.place_piece(King('dark'), 'e', 8)
+
+    def is_in_check_from( self, target_square: Square, attacking_color: str) -> bool:
+        """Determine whether a specified square is under attack from the specified player's pieces."""
+        for square_key, square in self.squares.items():
+            piece = square.contains()
+            if piece is None or piece.color != attacking_color:
+                continue
+            file_offset = ord(target_square.file) - ord(square.file)
+            rank_offset = target_square.rank - square.rank # type: ignore (suppress Pylance warning for int we know by now is not None)
+
+            # First check if we're even in the line of fire  We need to make a local copy of the capture pattern for potenial modification
+            # to exclude en-passant capture spots.
+            cap_pattern = piece.get_capture_pattern().copy()
+
+            # If the piece is a Pawn we need to exclude the en-passant capture spots
+            if isinstance(piece, Pawn):
+                cap_pattern = [spot for spot in cap_pattern if spot != (0, -1) and spot != (0, 1)]
+
+            # If the target square is not directly in a piece's capture proxiimity, move on to further checks
+            if (file_offset, rank_offset) not in piece.get_capture_pattern():
+                continue
+
+            # For non-sliding pieces we don't need to check more spots
+            if not piece.is_sliding_piece():
+                return True
+            # For sliding pieces, check if the path is clear
+            if self._is_sliding_path_clear( square, target_square, file_offset, rank_offset ):
+                return True
+        return False
+
+    def _is_sliding_path_clear( self, from_square, to_square, file_offset, rank_offset) -> bool:
+        """Check if the path is clear for a sliding piece's attack."""
+        file_step = 0 if file_offset == 0 else (1 if file_offset > 0 else -1 )
+        rank_step = 0 if rank_offset == 0 else (1 if rank_offset > 0 else -1 )
+        
+        # Start from the square after the attacking piece
+        current_file_ord = ord( from_square.file ) + file_step
+        current_rank = from_square.rank + rank_step
+
+        # Check each square in the path (excluding the target itself)
+        while( current_file_ord != ord(to_square.file) or current_rank != to_square.rank ):
+              current_square_key = f'{chr(current_file_ord)}{current_rank}'
+              if self.squares[current_square_key].is_occupied():
+                  return False # Path is blocked
+              current_file_ord += file_step
+              current_rank += rank_step
+        return True # Path is clear
 
     def __str__(self) -> str:
         game_board = '    A  B  C  D  E  F  G  H \n'
