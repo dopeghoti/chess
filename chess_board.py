@@ -98,14 +98,21 @@ class ChessBoard:
     
     def __hash__( self ) -> int:
         """Returns a hash of the chess board."""
+        # TODO: This hash won't work because its members are mutable. Make it instead calculate from immutable copies?
         return hash( [ self.squares, self.turn, self.turns, self.game_states ] )
 
     def end_turn( self ) -> None:
         # When ending a side's half-turn, we need to reset the en passant flag for all pawns of that side.
         for _ in self.squares.values():
             piece = _.contains()
-            if isinstance(piece, Pawn) and piece.color == self.turn:
+            if isinstance(piece, Pawn) and piece.color != self.turn:
                 piece.lower_passant_flag()
+        # TODO: Look for Kings in check
+        # TODO: Look for checkmates (!)  Hoo boy, this will be fun.
+        # TODO: Look for repetition stalemates once we save board states
+        # TODO: Look for stalemate: no legal moves
+        # TODO: Look for 50-turn draw
+        # TODO: Look for forced draw due to lack of pieces on both sides
         if self.turn == 'light':
             self.turns += 1
         self.turn = 'light' if self.turn == 'dark' else 'dark'

@@ -39,7 +39,7 @@ class TestColor(unittest.TestCase):
 
     def test_call( self ):
         result = f'{Color.BLUE("hello")} there'
-        self.assertEqual( result,  "\x1b[34mhello\x1b[0m there" )        
+        self.assertEqual( result,  "\x1b[34mhello\x1b[0m there" )
 
 class TestChessPieces(unittest.TestCase):
 
@@ -52,8 +52,7 @@ class TestChessPieces(unittest.TestCase):
         with self.assertRaisesRegex(NotImplementedError, "ChessPiece should not be instantiated directly"):
             ChessPiece('light')
 
-        # CORRECTED: Calling a subclass without the required 'color' argument 
-        # should raise a TypeError.
+        # Calling a subclass without the required 'color' argument should raise a TypeError.
         with self.assertRaises(TypeError):
             Knight() # type: ignore since Pylance doesn't like raising excpetions in purpose
 

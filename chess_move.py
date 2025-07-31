@@ -3,27 +3,27 @@ from chess_board import *
 
 class ChessMove:
     """Represents a chess move."""
-    
+
     def __init__(self, board: ChessBoard, from_key: str, to_key: str ):
         """Initialize a chess move with the board and the squares involved."""
         if not isinstance(board, ChessBoard):
-            raise TypeError("board must be an instance of ChessBoard.")     
-        
+            raise TypeError("board must be an instance of ChessBoard.")
+
         if from_key not in board.squares or to_key not in board.squares:
             raise ValueError("from_key and to_key must be valid square keys on the board.")
-        
+
         from_square = board.squares[from_key]
         to_square = board.squares[to_key]
 
         if not isinstance( from_square.contains(), ChessPiece ):
             raise ValueError("No piece on the from square to move.")
-        
+
         if not isinstance(to_square, Square):
             raise TypeError("to_square must be an instance of Square.")
-        
+
         if not isinstance(from_square, Square):
             raise TypeError("from_square must be an instance of Square.")
-        
+
         self.board = board
         self.from_square = from_square
         self.to_square = to_square
@@ -107,7 +107,7 @@ class ChessMove:
         # TODO: handle castling, en passant, promotion, etc.
         # TODO: implement ChessBoard.move() to handle moving a piece (NOT to be confused with a chess move)
         return all( ( self.validate_origin_constraints(), self.validate_other_constraints(), self.validate_piece_movement() ) )
-    
+
     def execute(self) -> None | ChessPiece:
         """Executes the move if it is valid."""
         if self.validate():
@@ -120,7 +120,7 @@ class ChessMove:
 
     def __repr__(self):
         return f"ChessMove({self.board}, {self.from_square}, {self.to_square})"
-    
+
 class ChessCapture(ChessMove):
     """Represents a chess capture move."""
 
@@ -164,19 +164,22 @@ class ChessCapture(ChessMove):
         final_square_key = f"{self.to_square.file}{final_rank}"
         return self.board.squares[final_square_key]
 
-    def execute(self) -> ChessPiece | None:
+    def execute(self) -> Optional[ChessPiece]:
         """Executes the move if it is valid."""
         if self.validate():
             capturing_piece = self.from_square.contains()
             captured_piece = self.to_square.contains()
             if self.validate_is_successful_en_passant(capturing_piece, captured_piece): # type: ignore
-                self.board[self.to_square.key].remove()  # Remove the captured piece
-                self.to_square = self.en_passant_final_square()  # Update to the final square
+                # En-passant capture
+                self.board.remove_piece( self.to_square.key )  # Remove the captured piece
+                final_square = self.en_passant_final_square()
+                self.board.move_piece( self.from_square.key, final_square.key )
+                final_square.contains().raise_moved_flag()
             else:
                 # Regular capture
-                self.to_square.remove()  # Remove the captured piece
-            self.board.move_piece(self.from_square.key, self.to_square.key)
-            self.to_square.occupant.raise_moved_flag() # type: ignore because we know the piece is not None
+                self.board.remove_piece( self.to_square.key )  # Remove the captured piece
+                self.board.move_piece(self.from_square.key, self.to_square.key)
+                self.to_square.occupant.raise_moved_flag() # type: ignore because we know the piece is not None
             self.board.end_turn()
             return captured_piece
         else:
@@ -194,9 +197,11 @@ class ChessCapture(ChessMove):
             # raise ValueError(f'Cannot move {self.from_square.contains()} from {self.from_square} to {self.to_square}. It is not a valid move.')
         # Alternative for ChessCapture override: return only Squares occupied by passive_player's ChessPieces.
         # Cannot move a King into check
+        # TODO: This is repeated multiple times.  It should probably be abstracted, possible into origin validation?
         if isinstance( self.from_square.contains(), King ):
             if self.board.is_in_check_from( self.to_square, passive_player ):
                 return False
+
         # Cannot move if the move would be a discovered check
         # TODO: this
         # Possible means: Make a duplicate board, _force_ the move, and then determine whether the moving_player's King is in check?
@@ -214,18 +219,18 @@ class ChessCapture(ChessMove):
         # We're returning False so that we don't have to lean into exception handling for the game UI loop.
 
         return all( ( self.validate_origin_constraints(), self.validate_other_constraints(), self.validate_piece_capture() ) )
-    
+
 
 
 class ChessCastle(ChessMove):
     """Represents a chess castling move."""
-    
+
     def validate_other_constraints(self) -> bool:
         if not isinstance( self.from_square.contains(), King ):
             return False
             # raise ValueError(f'Cannot castle with {self.from_square.contains()}. It is not a King.')
 
-        if self.from_square.contains().has_moved: 
+        if self.from_square.contains().has_moved:
             return False
             # raise ValueError(f'Cannot castle with {self.from_square.contains()}. It has already moved.')
 
@@ -318,15 +323,15 @@ class ChessCastle(ChessMove):
                 rook_key = 'h8' if self.to_square.key == 'g8' else 'a8'
                 rook_to_key = 'f8' if self.to_square.key == 'g8' else 'd8'
             rook = self.board[rook_key].remove()
-            
+
             # Place the King and Rook in their new positions
             self.board.place_piece(king, self.to_square.file, self.to_square.rank ) # type: ignore (suppress Pylance warning for type we know is not None)
             self.board.place_piece(rook, rook_to_key[0], int(rook_to_key[1]) )
-            
+
             # Mark the King and Rook as having moved
             king.raise_moved_flag()
             rook.raise_moved_flag()
-            
+
             self.board.end_turn()
         else:
             return None
