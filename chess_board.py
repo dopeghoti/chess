@@ -291,29 +291,38 @@ class ChessBoard:
         """Determine whether a specified square is under attack from the specified player's pieces."""
         for square_key, square in self.squares.items():
             piece = square.contains()
-            if piece is None or piece.color != attacking_color:
+            if not piece or piece.color != attacking_color:
                 continue
+
             file_offset = ord(target_square.file) - ord(square.file)
-            rank_offset = target_square.rank - square.rank # type: ignore (suppress Pylance warning for int we know by now is not None)
-
-            # First check if we're even in the line of fire  We need to make a local copy of the capture pattern for potenial modification
-            # to exclude en-passant capture spots.
-            cap_pattern = piece.get_capture_pattern().copy()
-
-            # If the piece is a Pawn we need to exclude the en-passant capture spots
-            if isinstance(piece, Pawn):
-                cap_pattern = [spot for spot in cap_pattern if spot != (0, -1) and spot != (0, 1)]
-
-            # If the target square is not directly in a piece's capture proxiimity, move on to further checks
-            if (file_offset, rank_offset) not in piece.get_capture_pattern():
+            rank_offset = target_square.rank - square.rank # type: ignore
+            
+            # If there's no offset, it's the same square, so no attack
+            if file_offset == 0 and rank_offset == 0:
                 continue
 
-            # For non-sliding pieces we don't need to check more spots
-            if not piece.is_sliding_piece():
-                return True
-            # For sliding pieces, check if the path is clear
-            if self._is_sliding_path_clear( square, target_square, file_offset, rank_offset ):
-                return True
+            # Determine the base direction of the attack (e.g., (0, -7) -> (0, -1))
+            file_dir = 0 if file_offset == 0 else (1 if file_offset > 0 else -1)
+            rank_dir = 0 if rank_offset == 0 else (1 if rank_offset > 0 else -1)
+
+            # For Pawns, the capture pattern is exact and non-sliding
+            if isinstance(piece, Pawn):
+                if (file_offset, rank_offset) in piece.get_capture_pattern():
+                    return True
+                else:
+                    continue # Pawns don't slide, so move to the next piece
+
+            # For all other pieces (sliding and non-sliding like King/Knight)
+            if (file_dir, rank_dir) in piece.get_capture_pattern():
+                if not piece.is_sliding_piece():
+                    # For King/Knight, the offset must be exact
+                    if (file_offset, rank_offset) in piece.get_capture_pattern():
+                        return True
+                else:
+                    # For sliding pieces, check if the path is clear
+                    if self._is_sliding_path_clear(square, target_square, file_offset, rank_offset):
+                        return True
+
         return False
 
     def _is_sliding_path_clear( self, from_square, to_square, file_offset, rank_offset) -> bool:

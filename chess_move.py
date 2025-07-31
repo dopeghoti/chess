@@ -183,7 +183,6 @@ class ChessCapture(ChessMove):
             return None
             # raise ValueError("Invalid capture move.")
 
-
     def validate_piece_capture( self ) -> bool:
         """Validation for the actual capture, with chess game rule logic"""
         moving_player = self.board.turn
@@ -226,13 +225,17 @@ class ChessCastle(ChessMove):
             return False
             # raise ValueError(f'Cannot castle with {self.from_square.contains()}. It is not a King.')
 
-        if self.from_square.contains().has_moved: # type: ignore because we know the piece is not None
+        if self.from_square.contains().has_moved: 
             return False
             # raise ValueError(f'Cannot castle with {self.from_square.contains()}. It has already moved.')
 
         if self.from_square.contains().has_been_in_check: # type: ignore because we know the piece is a King
             return False
             # raise ValueError(f'Cannot castle with {self.from_square.contains()}. It is or has been in check.')
+
+        if self.board.is_in_check_from( self.from_square, 'light' if self.board.turn == 'dark' else 'dark' ):
+            return False
+            # raise ValueError(f'Cannot castle with {self.from_square.contains()}. The King is in check.')
 
         if self.board.turn == 'light':
             if self.to_square.key not in ['g1', 'c1']:
@@ -247,7 +250,7 @@ class ChessCastle(ChessMove):
                 rook_key = 'h1'
                     # raise ValueError(f'Cannot castle to {self.to_square}. The squares between the King and Rook are not empty.')
             elif self.to_square.key == 'c1':
-                if any( ( self.board['d1'].is_occupied(), self.board['b1'].is_occupied() ) ):
+                if any( ( self.board['b1'].is_occupied(), self.board['c1'].is_occupied(), self.board['d1'].is_occupied() ) ):
                     return False
                 rook_key = 'a1'
                     # raise ValueError(f'Cannot castle to {self.to_square}. The squares between the King and Rook are not empty.')
@@ -264,7 +267,7 @@ class ChessCastle(ChessMove):
                     # raise ValueError(f'Cannot castle to {self.to_square}. The squares between the King and Rook are not empty.')
                 rook_key = 'h8'
             elif self.to_square.key == 'c8':
-                if any( ( self.board['d8'].is_occupied(), self.board['b8'].is_occupied() ) ):
+                if any( ( self.board['b8'].is_occupied(), self.board['c8'].is_occupied(), self.board['d8'].is_occupied() ) ):
                     return False
                     # raise ValueError(f'Cannot castle to {self.to_square}. The squares between the King and Rook are not empty.')
                 rook_key = 'a8'
@@ -296,6 +299,12 @@ class ChessCastle(ChessMove):
                 # raise ValueError(f'Cannot castle to {self.to_square}. The square {square} is under attack by {'light' if self.board.turn == 'dark' else 'dark'}.')
 
         # If all checks pass, return True
+        return True
+
+    def validate_piece_movement( self ) -> bool:
+        """Validation for the actual castling move, with chess game rule logic."""
+        # Castling is a special move, so we don't need to check the piece's movement pattern.
+        # We already checked the constraints in validate_other_constraints().
         return True
 
     def execute(self) -> None:

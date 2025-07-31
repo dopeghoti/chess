@@ -401,5 +401,89 @@ class TestGeneralCaptures(unittest.TestCase):
         self.assertFalse(move.validate(), "Queen should not capture through obstruction")
         self.board.clear()  # Clear the board for next test
 
+class TestCastling(unittest.TestCase):
+
+    def setUp(self):
+        self.board = ChessBoard()
+        self.board.clear()
+
+    def setup_king_rook_pair(self, color, kingside=True):
+        rank = '1' if color == 'light' else '8'
+        king_pos = f'e{rank}'
+        rook_pos = f'{"h" if kingside else "a"}{rank}'
+        self.board[king_pos].place(King(color))
+        self.board[rook_pos].place(Rook(color))
+
+    def test_valid_kingside_castle_light(self):
+        self.setup_king_rook_pair('light', kingside=True)
+        move = ChessCastle(self.board, 'e1', 'g1')
+        self.assertTrue(move.validate())
+        move.execute()
+        self.assertTrue(isinstance(self.board['g1'].contains(), King))
+        self.assertTrue(isinstance(self.board['f1'].contains(), Rook))
+        self.board.clear()  # Clear the board for next test
+
+    def test_valid_queenside_castle_dark(self):
+        self.setup_king_rook_pair('dark', kingside=False)
+        move = ChessCastle(self.board, 'e8', 'c8')
+        self.board.turn = 'dark'  # Set turn to dark for this test
+        self.assertTrue(move.validate())
+        move.execute()
+        self.assertTrue(isinstance(self.board['c8'].contains(), King))
+        self.assertTrue(isinstance(self.board['d8'].contains(), Rook))
+        self.board.clear()  # Clear the board for next test
+
+    def test_blocked_kingside_castle(self):
+        self.setup_king_rook_pair('light', kingside=True)
+        self.board['f1'].place(Bishop('light'))
+        move = ChessCastle(self.board, 'e1', 'g1')
+        self.assertFalse(move.validate())
+        self.board.clear()  # Clear the board for next test
+
+    def test_rook_has_moved_invalidates_castling(self):
+        self.setup_king_rook_pair('dark', kingside=True)
+        rook = self.board['h8'].contains()
+        rook.raise_moved_flag()
+        move = ChessCastle(self.board, 'e8', 'g8')
+        self.assertFalse(move.validate())
+        self.board.clear()  # Clear the board for next test
+
+    def test_king_has_moved_invalidates_castling(self):
+        self.setup_king_rook_pair('light', kingside=False)
+        king = self.board['e1'].contains()
+        king.raise_moved_flag()
+        move = ChessCastle(self.board, 'e1', 'c1')
+        self.assertFalse(move.validate())
+        self.board.clear()  # Clear the board for next test
+
+    def test_king_is_in_check(self):
+        self.setup_king_rook_pair('light', kingside=True)
+        self.board['e8'].place(Queen('dark'))  # Queen checks e1
+        move = ChessCastle(self.board, 'e1', 'g1')
+        self.assertFalse(move.validate())
+        self.board.clear()  # Clear the board for next test
+
+    def test_king_moves_through_check(self):
+        self.setup_king_rook_pair('dark', kingside=True)
+        self.board['f1'].place(Queen('light'))  # Queen attacks f8
+        move = ChessCastle(self.board, 'e8', 'g8')
+        self.assertFalse(move.validate())
+        self.board.clear()  # Clear the board for next test
+
+    def test_king_destination_square_under_attack(self):
+        self.setup_king_rook_pair('dark', kingside=True)
+        self.board['g1'].place(Queen('light'))  # Queen attacks g8
+        move = ChessCastle(self.board, 'e8', 'g8')
+        self.assertFalse(move.validate())
+        self.board.clear()  # Clear the board for next test
+
+    def test_invalid_target_square(self):
+        self.setup_king_rook_pair('light', kingside=True)
+        move = ChessCastle(self.board, 'e1', 'f1')  # Not a valid castle target
+        self.assertFalse(move.validate())
+        self.board.clear()  # Clear the board for next test
+
+
+
 if __name__ == "__main__":
     unittest.main()
