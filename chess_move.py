@@ -4,7 +4,17 @@ from chess_board import *
 class ChessMove:
     """Represents a chess move."""
     
-    def __init__(self, board: ChessBoard, from_square: Square, to_square: Square):
+    def __init__(self, board: ChessBoard, from_key: str, to_key: str ):
+        """Initialize a chess move with the board and the squares involved."""
+        if not isinstance(board, ChessBoard):
+            raise TypeError("board must be an instance of ChessBoard.")     
+        
+        if from_key not in board.squares or to_key not in board.squares:
+            raise ValueError("from_key and to_key must be valid square keys on the board.")
+        
+        from_square = board.squares[from_key]
+        to_square = board.squares[to_key]
+
         if not isinstance( from_square.contains(), ChessPiece ):
             raise ValueError("No piece on the from square to move.")
         
@@ -17,6 +27,18 @@ class ChessMove:
         self.board = board
         self.from_square = from_square
         self.to_square = to_square
+
+    def __eq__ (self, other) -> bool:
+        """Check if two chess moves are equal based on their squares and board state."""
+        if not isinstance(other, ChessMove):
+            return False
+        return (self.from_square == other.from_square and
+                self.to_square == other.to_square and
+                self.board == other.board)
+
+    def __hash__( self ) -> int:
+        """Returns a hash of the move."""
+        return hash((self.from_square, self.to_square, self.board.turn))
 
     def flag_movement( self, piece: ChessPiece ) -> None:
         """Flag the piece as having moved.  This is used for castling."""
@@ -43,7 +65,7 @@ class ChessMove:
         if self.to_square.is_occupied():
             return False
             # raise ValueError(f'Cannot move to {self.to_square}. It is already occupied by {self.to_square.contains()}.')
-
+        print( "Passed validate_other_constraints() in base class" )
         return True
 
     def validate_piece_movement( self ) -> bool:
@@ -84,13 +106,12 @@ class ChessMove:
 
         # TODO: handle castling, en passant, promotion, etc.
         # TODO: implement ChessBoard.move() to handle moving a piece (NOT to be confused with a chess move)
-
         return all( ( self.validate_origin_constraints(), self.validate_other_constraints(), self.validate_piece_movement() ) )
     
     def execute(self) -> None | ChessPiece:
         """Executes the move if it is valid."""
         if self.validate():
-            self.board.move_piece(self.from_square, self.to_square)
+            self.board.move_piece(self.from_square.key, self.to_square.key)
             self.to_square.occupant.raise_moved_flag() # type: ignore because we know the piece is not None
             self.board.end_turn()
 
@@ -108,25 +129,106 @@ class ChessCapture(ChessMove):
         if not self.to_square.is_occupied():
             return False
             # raise ValueError(f'Cannot capture on {self.to_square}. It is not occupied by any piece.')
-
         if self.to_square.contains().color == self.from_square.contains().color: # type: ignore because we know the colors are not None
             return False
             # raise ValueError(f'Cannot capture {self.to_square.contains()} on {self.to_square}. It is a friendly piece.')
-
         return True
+
+    def validate_is_successful_en_passant( self, capturing_piece: Pawn, captured_piece: ChessPiece ) -> bool:
+        """Check if the move is an en passant capture."""
+        print( "Validating en passant capture..." )
+        # Both pieces must be Pawns:
+        if not all( ( isinstance(capturing_piece, Pawn), isinstance(captured_piece, Pawn) ) ):
+            return False
+            # raise ValueError(f'Cannot perform en passant capture with {capturing_piece} and {captured_piece}. They are not both Pawns.'
+        print( "Both pieces are Pawns." )
+        # The capture must be one file away and the same rank:
+        if abs(ord(self.from_square.file) - ord(self.to_square.file)) != 1 or self.from_square.rank != self.to_square.rank:
+            return False
+            # raise ValueError(f'Cannot perform en passant capture from {self.from_square} to {self.to_square}. They are not one file away and the same rank.')
+        print( "Capture is one file away and same rank." )
+        # The captured Pawn must have just moved two squares forward:
+        if not captured_piece.vulnerable:
+            return False
+            # raise ValueError(f'Cannot perform en passant capture on {self.to_square}. The captured Pawn is not vulnerable to en passant.')
+        print( "Captured Pawn is vulnerable to en passant." )
+        # The space behind the captured Pawn must be empty:
+        final_rank = self.to_square.rank + capturing_piece.direction # type: ignore
+        final_square_key = f"{self.to_square.file}{final_rank}"
+        if self.board.squares[final_square_key].is_occupied():
+            return False
+            # raise ValueError(f'Cannot perform en passant capture on {self.to_square}. The square behind the captured Pawn is not empty.')
+        # If all checks pass, return True
+        return True
+
+    def en_passant_final_square( self ) -> Square:
+        """Returns the final square for an en passant capture."""
+        final_rank = self.to_square.rank + self.from_square.contains().direction # pyright: ignore[reportAttributeAccessIssue]
+        final_square_key = f"{self.to_square.file}{final_rank}"
+        return self.board.squares[final_square_key]
 
     def execute(self) -> ChessPiece | None:
         """Executes the move if it is valid."""
-        # TODO - the very odd case of en pessant is not handled.
-        captured_piece = self.to_square.contains()
         if self.validate():
-            self.board.move_piece(self.from_square, self.to_square)
+            print( "Passed validate()" )
+            capturing_piece = self.from_square.contains()
+            captured_piece = self.to_square.contains()
+            if self.validate_is_successful_en_passant(capturing_piece, captured_piece): # type: ignore
+                # Remove the captured piece and place the capturing piece in the final square
+                self.board.squares[self.to_square.key].remove()  # Remove the captured piece
+                self.to_square = self.en_passant_final_square()  # Update to the final square
+            self.board.move_piece(self.from_square.key, self.to_square.key)
             self.to_square.occupant.raise_moved_flag() # type: ignore because we know the piece is not None
             self.board.end_turn()
             return captured_piece
         else:
             return None
             # raise ValueError("Invalid capture move.")
+
+
+    def validate_piece_capture( self ) -> bool:
+        """Validation for the actual capture, with chess game rule logic"""
+        moving_player = self.board.turn
+        passive_player = 'light' if moving_player == 'dark' else 'dark'
+        print( "Validating piece capture..." )
+        # Is the destination in the Piece's movement pattern? (or capture pattern for ChessCapture)
+        # TODO: check that this works properly for all pieces, especially sliding pieces.
+        if self.to_square.key not in [ key for key in self.board.get_legal_captures( self.from_square.key ) ]:
+            print( f"{self.to_square.key} not in legal captures for {self.from_square.key}" )
+            return False
+            # raise ValueError(f'Cannot move {self.from_square.contains()} from {self.from_square} to {self.to_square}. It is not a valid move.')
+        # Alternative for ChessCapture override: return only Squares occupied by passive_player's ChessPieces.
+
+        # Cannot move a King into check
+        if isinstance( self.from_square.contains(), King ):
+            if self.board.is_in_check_from( self.to_square, passive_player ):
+                print( "Failed validate_piece_capture() for King in check" )
+                return False
+
+        # Cannot move if the move would be a discovered check
+        # TODO: this
+        # Possible means: Make a duplicate board, _force_ the move, and then determine whether the moving_player's King is in check?
+        # Possibly move validate_discovered_check() into a new function since we need to do this for every type of move.
+        # We will also have to override this for ChessCapture for pawns: the move is to capture laterally but we can only do so if
+        # the space in the corresponding Square in the movement_pattern is open to move into.
+
+        # If all of the validation checks pass, return True
+        return True
+
+    def validate( self ) -> bool:
+        """Validates the move according to chess rules (eventually)."""
+        # This is a placeholder for move validation logic.
+        # Actual validation would depend on the piece type and game state.
+        # But we can get started with some fundamental checks.
+
+        # For not, just return False for invalid moves.  If we end up needing Exceptions, we can do so
+        # and will put in the code now, but it will be commented out.
+
+        # TODO: handle castling, en passant, promotion, etc.
+        # TODO: implement ChessBoard.move() to handle moving a piece (NOT to be confused with a chess move)
+        return all( ( self.validate_origin_constraints(), self.validate_other_constraints(), self.validate_piece_capture() ) )
+    
+
 
 class ChessCastle(ChessMove):
     """Represents a chess castling move."""
@@ -189,8 +291,23 @@ class ChessCastle(ChessMove):
             # raise ValueError(f'Cannot castle with {rook}. It has already moved.')
 
         # TODO: check if the squares the King moves through are not under attack.
-        # This is a complex check that requires knowledge of the game state and all pieces' positions
-        # and their possible moves. This will come later.
+        # Verify this works properly.
+        match self.to_square.key:
+            case 'g1':
+                path = ['f1', 'g1']
+            case 'c1':
+                path = ['d1', 'c1']
+            case 'g8':
+                path = ['f8', 'g8']
+            case 'c8':
+                path = ['d8', 'c8']
+        for square_key in path: # pyright: ignore[reportPossiblyUnboundVariable]
+            square = self.board[square_key]
+            if self.board.is_in_check_from( square, 'light' if self.board.turn == 'dark' else 'dark' ):
+                return False
+                # raise ValueError(f'Cannot castle to {self.to_square}. The square {square} is under attack by {'light' if self.board.turn == 'dark' else 'dark'}.')
+
+        # If all checks pass, return True
         return True
 
     def execute(self) -> None:
@@ -215,4 +332,5 @@ class ChessCastle(ChessMove):
             
             self.board.end_turn()
         else:
-            raise ValueError("Invalid castling move.")
+            return None
+            # raise ValueError("Invalid castling move.")

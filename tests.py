@@ -2,7 +2,11 @@
 import unittest
 from color import Color
 from chess_board import ChessBoard, Square
+from chess_move import *
 from chess_piece import *
+
+from unittest import mock
+from io import StringIO
 
 class TestColor(unittest.TestCase):
     def test_fg(self):
@@ -103,7 +107,7 @@ class TestChessPieces(unittest.TestCase):
         self.assertEqual(str(dark_pawn), '♟')
 
         # Test representation
-        self.assertEqual(repr(light_pawn), 'light pawn')
+        self.assertEqual(repr(light_pawn), 'Pawn( "light" )')
 
     def test_rook(self):
         """Tests the Rook piece."""
@@ -121,7 +125,7 @@ class TestChessPieces(unittest.TestCase):
         self.assertEqual(str(dark_rook), '♜')
 
         # Test representation
-        self.assertEqual(repr(dark_rook), 'dark rook')
+        self.assertEqual(repr(dark_rook), 'Rook( "dark" )')
 
     def test_knight(self):
         """Tests the Knight piece."""
@@ -139,7 +143,7 @@ class TestChessPieces(unittest.TestCase):
         self.assertEqual(str(dark_knight), '♞')
 
         # Test representation
-        self.assertEqual(repr(light_knight), 'light knight')
+        self.assertEqual(repr(light_knight), 'Knight( "light" )')
 
     def test_bishop(self):
         """Tests the Bishop piece."""
@@ -157,7 +161,7 @@ class TestChessPieces(unittest.TestCase):
         self.assertEqual(str(dark_bishop), '♝')
 
         # Test representation
-        self.assertEqual(repr(dark_bishop), 'dark bishop')
+        self.assertEqual(repr(dark_bishop), 'Bishop( "dark" )')
 
     def test_queen(self):
         """Tests the Queen piece."""
@@ -175,7 +179,7 @@ class TestChessPieces(unittest.TestCase):
         self.assertEqual(str(dark_queen), '♛')
 
         # Test representation
-        self.assertEqual(repr(light_queen), 'light queen')
+        self.assertEqual(repr(light_queen), 'Queen( "light" )')
 
     def test_king(self):
         """Tests the King piece."""
@@ -193,7 +197,7 @@ class TestChessPieces(unittest.TestCase):
         self.assertEqual(str(dark_king), '♚')
 
         # Test representation
-        self.assertEqual(repr(dark_king), 'dark king')
+        self.assertEqual(repr(dark_king), 'King( "dark" )')
 
 class TestChessBoard(unittest.TestCase):
     def setUp(self):
@@ -224,19 +228,80 @@ class TestChessBoard(unittest.TestCase):
 
     def test_board_moving_pieces(self):
         self.board.setup()
-        self.board.move_piece( self.board['a1'], self.board['d4'] )
-        self.board.move_piece( self.board['h1'], self.board['e4'] )
-        self.board.move_piece( self.board['a8'], self.board['d5'] )
-        self.board.move_piece( self.board['h8'], self.board['e5'] )
+        self.board.move_piece( 'a1', 'd4' )
+        self.board.move_piece( 'h1', 'e4' )
+        self.board.move_piece( 'a8', 'd5' )
+        self.board.move_piece( 'h8', 'e5' )
         self.assertIsNot( any( ( 
             self.board['a1'].is_occupied(), 
-            self.board['h1'].is_occupied() ) ), 
+            self.board['h1'].is_occupied() , 
             self.board['a8'].is_occupied(), 
-            self.board['h8'].is_occupied() )
+            self.board['h8'].is_occupied() 
+            ) ), True, "Pieces should have been moved." )
         self.assertIsInstance(self.board.get_piece('d4'), Rook)
         self.assertIsInstance(self.board.get_piece('e4'), Rook)
         self.assertIsInstance(self.board.get_piece('d5'), Rook)
         self.assertIsInstance(self.board.get_piece('e5'), Rook)
+
+class TestEnPassant(unittest.TestCase):
+
+    def setUp(self):
+        self.board = ChessBoard()
+        self.board.clear()
+
+    def test_light_captures_dark_en_passant(self):
+
+        with mock.patch( 'sys.stdout', new=StringIO() ) as mock_stdout:
+            self.board['e7'].place(Pawn('dark'))
+            self.board['d5'].place(Pawn('light'))
+
+            self.board.move_piece( 'e7', 'e5')
+            self.board['e5'].contains().raise_passant_flag()  # Set the vulnerable flag for en passant
+            self.board['e5'].contains().raise_moved_flag()  # Set the has_moved flag to True
+            # Now we can capture en passant
+            move = ChessCapture(self.board, 'd5', 'e5')
+            self.assertTrue(move.validate(), "En passant move should be valid")
+            captured = move.execute()
+        self.assertIsNotNone(captured, "Capture should have occurred")
+        self.assertTrue(self.board['e6'].is_occupied(), "Capturing pawn should be on e6")
+        self.assertFalse(self.board['e5'].is_occupied(), "Square e5 should be empty after capture")
+
+    def test_dark_captures_light_en_passant(self):
+        self.board['d2'].place(Pawn('light'))
+        self.board['e4'].place(Pawn('dark'))
+
+        self.board.move_piece( 'd2', 'd4' )
+        self.board['d4'].contains().raise_passant_flag()  # Set the vulnerable flag for en passant
+        self.board['d4'].contains().raise_moved_flag()  # Set the has_moved flag to True
+        # Now we can capture en passant
+        move = ChessCapture(self.board, 'e4', 'd4')
+        self.assertTrue(move.validate(), "En passant move should be valid")
+        captured = move.execute()
+        self.assertIsNotNone(captured, "Capture should have occurred")
+        self.assertTrue(self.board['d3'].is_occupied(), "Capturing pawn should be on d3")
+        self.assertFalse(self.board['d4'].is_occupied(), "Square d4 should be empty after capture")
+
+    def test_en_passant_invalid_after_delay(self):
+        self.board['e7'].place(Pawn('dark'))
+        self.board['d5'].place(Pawn('light'))
+
+        self.board.move_piece( 'e7', 'e5' )
+        self.board['e5'].occupant.vulnerable = True
+        self.board.end_turn()  # light's turn
+        self.board.end_turn()  # back to dark, vulnerability expired
+
+        move = ChessCapture(self.board, 'd5', 'e5' )
+        self.assertFalse(move.validate(), "En passant should be invalid after a turn has passed")
+
+    def test_en_passant_invalid_wrong_square(self):
+        self.board['e7'].place(Pawn('dark'))
+        self.board['c5'].place(Pawn('light'))
+
+        self.board.move_piece( 'e7', 'e5' )
+        self.board['e5'].occupant.vulnerable = True
+
+        move = ChessCapture(self.board,  'c5', 'e5')  # too far
+        self.assertFalse(move.validate(), "En passant should be invalid from non-adjacent file")
 
 
 

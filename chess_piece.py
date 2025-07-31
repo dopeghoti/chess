@@ -1,3 +1,5 @@
+from typing import Optional
+
 class ChessPiece:
     """It should be noted that because we're (trying to) use the Unicode
     glyphs for terminal representation of chess pieces, the light
@@ -13,7 +15,7 @@ class ChessPiece:
             'dark'  : '!' }
     symbol = 'X' # For usage in move notation; should be overridden by subclass
     
-    def __init__(self, color: str | None = None):
+    def __init__(self, color: Optional[str] = None ):
         """Meant to be superceded by a subclass for each type of piece."""
         if color is None:
             raise ValueError( "Color must be specified for ChessPiece" )
@@ -28,15 +30,18 @@ class ChessPiece:
         return self.__class__.glyph[self.color]
 
     def __repr__( self ) -> str:
-        return f'{self.color} {self.name}'
+        """Return e. g. 'Rook ( "light" )'."""
+        return f'{self.__class__.__name__.capitalize()}( "{self.color}" )'
 
     def __eq__( self, other_piece ) -> bool:
         """Allow for such things as `if some_chess_piece in{ Rook('light'), Queen('dark') }:` """
-        return isinstance( other_piece, ChessPiece ) and \
-                self.color == other_piece.color and \
-                self.name == other_piece.name
+        if isinstance( other_piece, ChessPiece ):
+            return all( [ self.color == other_piece.color, self.name == other_piece.name ] )
+        else:
+            # It's not even a ChessPiece, so it's oviously not equal
+            return False
 
-    def __hash__( self ):
+    def __hash__( self ) -> int:
         return hash( ( self.color, self.name ) )
     
     def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
@@ -59,6 +64,13 @@ class ChessPiece:
 
         Used to determine if path-clearing logic is needed.  Only for Rook, Bishop, and Queen."""
         return False
+    
+    def is_vulnerable( self ) -> bool:
+        """Return True if the piece is vulnerable to en passant capture."""
+        if hasattr( self, 'vulnerable' ):
+            return self.vulnerable
+        else:
+            raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
 
     def raise_moved_flag( self ) -> None:
         """Set the has_moved flag to True.  This is used for castling."""
@@ -93,7 +105,7 @@ class Pawn(ChessPiece):
         self.has_moved = False # For tracking first-move option for moving two spaces forward
         self.direction = 1 if self.color == 'light' else -1 # for setting which direction the Pawn can advance based on color
 
-    def get_movement_pattern( self ) -> list[ tuple[ int, int ] ]:
+    def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Pawns move forward only.  "Forward" is defined by piece color."""
         moves = [ ( 0, self.direction ) ]
 
@@ -120,13 +132,13 @@ class Rook(ChessPiece):
     symbol = 'R'
     def __init__(self, color: str):
         super().__init__(color)
-        self.has_moved = False  # Track if the rook has moved for castling purposes
+        self.has_moved = False  # Track whether the rook has moved for castling purposes
 
     def is_sliding_piece( self ) -> bool:
-        """Used to determine if path-clearing logic is needed.  Only for Rook, Bishop, and Queen."""
+        """Rooks can slide."""
         return True
 
-    def get_movement_pattern( self ) -> list[ tuple[ int, int ] ]:
+    def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Rooks move along ranks and files only."""
         moves = [
                 (  1,  0 ),
@@ -145,7 +157,7 @@ class Knight(ChessPiece):
     def __init__(self, color: str):
         super().__init__(color)
 
-    def get_movement_pattern( self ) -> list[ tuple[ int, int ] ]:
+    def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Knights move either ±2 ranks and ±1 file or vice verse."""
         moves = [
                 (  1,  2 ),
@@ -169,10 +181,10 @@ class Bishop(ChessPiece):
         super().__init__(color)
 
     def is_sliding_piece( self ) -> bool:
-        """Used to determine if path-clearing logic is needed.  Only for Rook, Bishop, and Queen."""
+        """Bishops can slide."""
         return True
 
-    def get_movement_pattern( self ) -> list[ tuple[ int, int ] ]:
+    def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Bishops move along diagonals only."""
         moves = [
                 (  1,  1 ),
@@ -192,10 +204,10 @@ class Queen(ChessPiece):
         super().__init__(color)
 
     def is_sliding_piece( self ) -> bool:
-        """Used to determine if path-clearing logic is needed.  Only for Rook, Bishop, and Queen."""
+        """Queens can slide."""
         return True
 
-    def get_movement_pattern( self ) -> list[ tuple[ int, int ] ]:
+    def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Queens move in diagonals, ranks, and files."""
         moves = [
                 (  1,  0 ),
@@ -217,10 +229,10 @@ class King(ChessPiece):
     symbol = 'K'
     def __init__(self, color: str):
         super().__init__(color)
-        self.has_moved = False  # Track if the king has moved for castling purposes
-        self.has_been_in_check = False  # Track if the king has been in check at any point for castling purposes
+        self.has_moved = False  # Track whether the king has moved for castling purposes
+        self.has_been_in_check = False  # Track whether the king has been in check at any point for castling purposes
 
-    def get_movement_pattern( self ) -> list[ tuple[ int, int ] ]:
+    def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Kings move in diagonals, ranks, and files, but only one space."""
         moves = [
                 (  1,  0 ),

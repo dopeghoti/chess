@@ -1,0 +1,5 @@
+[tool.pyright]
+reportOptionalMemberAccess = false
+
+[tool.pylint.'MESSAGES CONTROL']
+disable = "E1101"  # Disables optional member access errors

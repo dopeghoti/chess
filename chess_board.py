@@ -3,17 +3,31 @@ from color import Color as C
 from typing import Optional
 
 class Square:
-    def __init__(self, color: str | None = None, file: str | None = None, rank: int | None = None ):
-        if not all( [ color, file, rank ] ):
+    def __init__(self, color: Optional[str] = None, file: Optional[str] = None, rank: Optional[int] = None ):
+        if None in (color, file, rank):
             raise ValueError( f"Color, file, and rank must be specified for Square.  {color=}, {file=}, {rank=}" )
-        if color.lower() not in [ 'light', 'dark' ]: # type: ignore (suppress Pylance warning for str we know by now is not None)
+        if color is not None and color.lower() not in [ 'light', 'dark' ]: 
             raise ValueError( f"Color must be either 'light' or 'dark'.  {color=}." )
-        if int(rank) - 1 not in range( 8 ): # type: ignore (suppress Pylance warning for int we know by now is not None)
+        if rank is not None and int(rank) - 1 not in range( 8 ): 
             raise ValueError( f"Rank must be between 1 and 8.  {rank=}" )
-        if file.lower() not in 'abcdefgh': # type: ignore (suppress Pylance warning for str we know by now is not None)
+        if file is not None and file.lower() not in 'abcdefgh':
             raise ValueError( f"File must be one of 'a' to 'h'.  {file=}" )
-        self.color, self.file, self.rank, self.occupant = color.lower(), file.lower(), rank, None # type: ignore (suppress Pylance warnings for types we know by now are not None)
-        self.key = f"{self.file.lower()}{self.rank}"
+        self.color, self.file, self.rank, self.occupant = color.lower(), file.lower(), rank, None
+        self.key = f"{self.file}{self.rank}"  # e.g. 'a1', 'h8'
+
+    def __hash__( self ) -> int:
+        """Returns a hash of the square."""
+        return hash((self.color, self.file, self.rank, self.occupant, self.key))
+    
+    def __eq__( self, other ) -> bool:
+        """Check if two squares are equal based on color, file, rank, and occupant."""
+        if not isinstance(other, Square):
+            return False
+        return all( (
+            self.color == other.color,
+            self.file == other.file,
+            self.rank == other.rank,
+            self.occupant == other.occupant) )
 
     def is_occupied(self) -> bool:
         """Check if the square is occupied by a chess piece."""
@@ -38,18 +52,18 @@ class Square:
         self.occupant = None
         return piece
 
-    def promote( self, new_piece_class: type[ChessPiece] = Queen ) -> None:
-        """If there is a Pawn on square, promote it to a higher piece."""
-        # TODO: Move this to the Pawn ChessPiece, and a companion piece into ChessMove
-        if self.occupant is None:
-            raise ValueError( "Square is empty. Cannot promote a piece.")
-        if not isinstance(self.occupant, Pawn):
-            raise TypeError( "Only Pawns can be promoted." )
-        if not issubclass(new_piece_class, ChessPiece):
-            raise TypeError( f"New piece must be a subclass of ChessPiece. Received: {new_piece_class}" )
-        if not new_piece_class in [ Queen, Rook, Bishop, Knight ]:
-            raise ValueError( f"New piece must be one of Queen, Rook, Bishop, or Knight. Received: {new_piece_class}" )
-        self.occupant = new_piece_class(self.occupant.color)
+    # def promote( self, new_piece_class: type[ChessPiece] = Queen ) -> None:
+    #     """If there is a Pawn on square, promote it to a higher piece."""
+    #     # TODO: Move this to the Pawn ChessPiece, and a companion piece into ChessMove
+    #     if self.occupant is None:
+    #         raise ValueError( "Square is empty. Cannot promote a piece.")
+    #     if not isinstance(self.occupant, Pawn):
+    #         raise TypeError( "Only Pawns can be promoted." )
+    #     if not issubclass(new_piece_class, ChessPiece):
+    #         raise TypeError( f"New piece must be a subclass of ChessPiece. Received: {new_piece_class}" )
+    #     if not new_piece_class in [ Queen, Rook, Bishop, Knight ]:
+    #         raise ValueError( f"New piece must be one of Queen, Rook, Bishop, or Knight. Received: {new_piece_class}" )
+    #     self.occupant = new_piece_class(self.occupant.color)
 
     def __str__( self ) -> str:
         fgc = C.WHITE
@@ -62,7 +76,6 @@ class Square:
         else:
             piece = ' '
         return fgc( f' {piece} ', fgc, bgc, True )
-    
 
 class ChessBoard:
     def __init__(self):
@@ -74,8 +87,18 @@ class ChessBoard:
                 for file in 'abcdefgh' for rank in range(1, 9)
                 }
         self.turn = 'light'
-        self.half_turns = 0
+        self.turns = 0
         self.game_states = {}
+
+    def __eq__( self, other ) -> bool:
+        """Check if two chess boards are equal based on their squares."""
+        if not isinstance(other, ChessBoard):
+            return False
+        return all( self.squares[key] == other.squares[key] for key in self.squares )
+    
+    def __hash__( self ) -> int:
+        """Returns a hash of the chess board."""
+        return hash( [ self.squares, self.turn, self.turns, self.game_states ] )
 
     def end_turn( self ) -> None:
         # When ending a side's half-turn, we need to reset the en passant flag for all pawns of that side.
@@ -83,8 +106,8 @@ class ChessBoard:
             piece = _.contains()
             if isinstance(piece, Pawn) and piece.color == self.turn:
                 piece.lower_passant_flag()
-        self.half_turns += 1
-        self.game_states[self.half_turns]= dict( self.squares ) # Ensure this is a _copy_ and not a _reference_ by forcing creation of a fresh dict
+        if self.turn == 'light':
+            self.turns += 1
         self.turn = 'light' if self.turn == 'dark' else 'dark'
 
     def place_piece(self, piece: ChessPiece, file: str, rank: int) -> None:
@@ -93,6 +116,15 @@ class ChessBoard:
         if square_key not in self.squares:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         self.squares[square_key].place(piece)
+
+    def remove_piece(self, key: str) -> ChessPiece:
+        """Remove a chess piece from the board at the specified file and rank."""
+        if key not in self.squares:
+            raise ValueError(f"Invalid square: {key}. Must be in the format 'a1' to 'h8'.")
+        if self.squares[key].is_occupied():
+            return self.squares[key].remove()
+        else:
+            raise ValueError(f"No piece on {key} to remove.")
 
     def __getitem__( self, square_key: str ) -> Square:
         """Get the square at the specified key."""
@@ -141,54 +173,75 @@ class ChessBoard:
         # Remove duplicates and return the list of legal moves
         return list(set(legal_moves))
     
-        def get_legal_captures( self, square_key: str ) -> list[Square]:
-            """Get all legal captures for the piece on the specified square."""
-            if square_key not in self.squares:
-                raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
-            piece = self.squares[square_key].contains()
-            if piece is None:
-                return [] # No piece on the square, no legal captures
-            
-            # Get the piece's capture pattern and translate it to squares
-            legal_captures = []
-            for capture in piece.get_capture_pattern():
-                target_file_ord = ord(square_key[0]) + capture[0]
-                target_rank = int(square_key[1]) + capture[1]
-                if 97 <= target_file_ord <= 104 and 1 <= target_rank <= 8:
-                    target_square_key = f"{chr(target_file_ord)}{target_rank}"
-                    target_square = self.squares[target_square_key]
+    def get_legal_captures( self, square_key: str ) -> list[Square]:
+        """Get all legal captures for the piece on the specified square."""
+        print( f"Getting legal captures for {square_key}" )
+        if square_key not in self.squares:
+            raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
+        piece = self.squares[square_key].contains()
+        if piece is None:
+            return [] # No piece on the square, no legal captures
+        print( f"Piece on {square_key} is {piece}" )
+        # Get the piece's capture pattern and translate it to squares
+        legal_captures = []
+        for capture in piece.get_capture_pattern():
+            target_file_ord = ord(square_key[0]) + capture[0]
+            target_rank = int(square_key[1]) + capture[1]
+            if 97 <= target_file_ord <= 104 and 1 <= target_rank <= 8:
+                target_square_key = f"{chr(target_file_ord)}{target_rank}"
+                target_square = self.squares[target_square_key]
+                print( f"Checking target square {target_square_key} for capture" )
+                if target_square is not None:
                     if target_square.is_occupied() and target_square.contains().color != piece.color:
+                        print( f"Potential legal capture found on {target_square_key} by {piece}" )
                         # If we are capturing with a Pawn, and the capture is en passant,
                         # we need to check if the target square is vulnerable
                         if isinstance(piece, Pawn) and capture in [(-1, 0), (1, 0)]:
-                            if target_square.contains().vulnerable:
-                                legal_captures.append(target_square)
+                            print( f"Checking for en passant capture on {target_square_key}" )
+                            if target_square.contains().is_vulnerable(): 
+                                print( f"En passant target is vulnerable on {target_square_key}" )
+                                # Check to see if the square behind the target square is empty
+                                final_rank = target_rank + piece.direction
+                                final_square_key = f"{target_square_key[0]}{final_rank}"
+                                if not self.squares[final_square_key].is_occupied():
+                                    print( f"En passant capture legal on {target_square_key} with {piece} and {final_square_key} is empty." )
+                                    legal_captures.append(target_square_key)
                         else:
-                            legal_captures.append(target_square)
-                if piece.is_sliding_piece():
-                    # For sliding pieces, we need to check all squares in the direction of capture
-                    step_file_ord = ord(square_key[0]) + capture[0]
-                    step_rank = int(square_key[1]) + capture[1]
-                    while 97 <= step_file_ord <= 104 and 1 <= step_rank <= 8:
-                        step_square_key = f"{chr(step_file_ord)}{step_rank}"
-                        step_square = self.squares[step_square_key]
-                        if step_square.is_occupied() and step_square.contains().color != piece.color:
-                            legal_captures.append(step_square)
-                            break
-                        elif step_square.is_occupied():
-                            break
-                        step_file_ord += capture[0]
-                        step_rank += capture[1]
-            # Remove duplicates and return the list of legal captures
-            return list(set(legal_captures))
+                            print( f"Legal capture on {target_square_key} by {piece}" )
+                            legal_captures.append(target_square_key)
+            if piece.is_sliding_piece():
+                # For sliding pieces, we need to check all squares in the direction of capture
+                step_file_ord = ord(square_key[0]) + capture[0]
+                step_rank = int(square_key[1]) + capture[1]
+                while 97 <= step_file_ord <= 104 and 1 <= step_rank <= 8:
+                    step_square_key = f"{chr(step_file_ord)}{step_rank}"
+                    step_square = self.squares[step_square_key]
+                    if step_square.is_occupied() and step_square.contains().color != piece.color:
+                        legal_captures.append(step_square_key)
+                        break
+                    elif step_square.is_occupied():
+                        break
+                    step_file_ord += capture[0]
+                    step_rank += capture[1]
+        # Remove duplicates and return the list of legal captures
+        return list(set(legal_captures))
 
-    def move_piece( self, from_square: Square, to_square: Square ) -> None:
+    def move_piece( self, from_key: str, to_key: str ) -> None:
         """Move a piece from one Square to another.
         
         This ls literally just moving the piece, it is not a Chess Move and does not
         validate game logic or rules.  That will be handled by ChessMove.
         """
-        if not isinstance(from_square, Square) or not isinstance(to_square, Square):
+
+        if from_key not in self.squares or to_key not in self.squares:
+            raise ValueError(f"Invalid square keys: {from_key}, {to_key}. Must be in the format 'a1' to 'h8'.")
+        if from_key == to_key:
+            raise ValueError(f"Cannot move piece to the same square: {from_key}.")
+        
+        from_square = self.squares[from_key]
+        to_square = self.squares[to_key]    
+
+        if not all( ( isinstance(from_square, Square), isinstance(to_square, Square) ) ):
             raise TypeError("from_square and to_square must be instances of Square.")
         if not from_square.is_occupied():
             raise ValueError(f"No piece on {from_square} to move.")
@@ -208,7 +261,7 @@ class ChessBoard:
         self.clear()
         # Light always goes first.
         self.turn = 'light'
-        self.half_turns = 0
+        self.turns = 0
         self.game_states = {}
 
         # place Pawns
