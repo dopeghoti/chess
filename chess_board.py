@@ -175,13 +175,11 @@ class ChessBoard:
     
     def get_legal_captures( self, square_key: str ) -> list[Square]:
         """Get all legal captures for the piece on the specified square."""
-        print( f"Getting legal captures for {square_key}" )
         if square_key not in self.squares:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         piece = self.squares[square_key].contains()
         if piece is None:
             return [] # No piece on the square, no legal captures
-        print( f"Piece on {square_key} is {piece}" )
         # Get the piece's capture pattern and translate it to squares
         legal_captures = []
         for capture in piece.get_capture_pattern():
@@ -190,24 +188,18 @@ class ChessBoard:
             if 97 <= target_file_ord <= 104 and 1 <= target_rank <= 8:
                 target_square_key = f"{chr(target_file_ord)}{target_rank}"
                 target_square = self.squares[target_square_key]
-                print( f"Checking target square {target_square_key} for capture" )
                 if target_square is not None:
                     if target_square.is_occupied() and target_square.contains().color != piece.color:
-                        print( f"Potential legal capture found on {target_square_key} by {piece}" )
                         # If we are capturing with a Pawn, and the capture is en passant,
                         # we need to check if the target square is vulnerable
                         if isinstance(piece, Pawn) and capture in [(-1, 0), (1, 0)]:
-                            print( f"Checking for en passant capture on {target_square_key}" )
                             if target_square.contains().is_vulnerable(): 
-                                print( f"En passant target is vulnerable on {target_square_key}" )
                                 # Check to see if the square behind the target square is empty
                                 final_rank = target_rank + piece.direction
                                 final_square_key = f"{target_square_key[0]}{final_rank}"
                                 if not self.squares[final_square_key].is_occupied():
-                                    print( f"En passant capture legal on {target_square_key} with {piece} and {final_square_key} is empty." )
                                     legal_captures.append(target_square_key)
                         else:
-                            print( f"Legal capture on {target_square_key} by {piece}" )
                             legal_captures.append(target_square_key)
             if piece.is_sliding_piece():
                 # For sliding pieces, we need to check all squares in the direction of capture

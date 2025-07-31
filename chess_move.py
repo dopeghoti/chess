@@ -136,22 +136,18 @@ class ChessCapture(ChessMove):
 
     def validate_is_successful_en_passant( self, capturing_piece: Pawn, captured_piece: ChessPiece ) -> bool:
         """Check if the move is an en passant capture."""
-        print( "Validating en passant capture..." )
         # Both pieces must be Pawns:
         if not all( ( isinstance(capturing_piece, Pawn), isinstance(captured_piece, Pawn) ) ):
             return False
             # raise ValueError(f'Cannot perform en passant capture with {capturing_piece} and {captured_piece}. They are not both Pawns.'
-        print( "Both pieces are Pawns." )
         # The capture must be one file away and the same rank:
         if abs(ord(self.from_square.file) - ord(self.to_square.file)) != 1 or self.from_square.rank != self.to_square.rank:
             return False
             # raise ValueError(f'Cannot perform en passant capture from {self.from_square} to {self.to_square}. They are not one file away and the same rank.')
-        print( "Capture is one file away and same rank." )
         # The captured Pawn must have just moved two squares forward:
         if not captured_piece.vulnerable:
             return False
             # raise ValueError(f'Cannot perform en passant capture on {self.to_square}. The captured Pawn is not vulnerable to en passant.')
-        print( "Captured Pawn is vulnerable to en passant." )
         # The space behind the captured Pawn must be empty:
         final_rank = self.to_square.rank + capturing_piece.direction # type: ignore
         final_square_key = f"{self.to_square.file}{final_rank}"
@@ -170,7 +166,6 @@ class ChessCapture(ChessMove):
     def execute(self) -> ChessPiece | None:
         """Executes the move if it is valid."""
         if self.validate():
-            print( "Passed validate()" )
             capturing_piece = self.from_square.contains()
             captured_piece = self.to_square.contains()
             if self.validate_is_successful_en_passant(capturing_piece, captured_piece): # type: ignore
@@ -190,21 +185,16 @@ class ChessCapture(ChessMove):
         """Validation for the actual capture, with chess game rule logic"""
         moving_player = self.board.turn
         passive_player = 'light' if moving_player == 'dark' else 'dark'
-        print( "Validating piece capture..." )
         # Is the destination in the Piece's movement pattern? (or capture pattern for ChessCapture)
         # TODO: check that this works properly for all pieces, especially sliding pieces.
         if self.to_square.key not in [ key for key in self.board.get_legal_captures( self.from_square.key ) ]:
-            print( f"{self.to_square.key} not in legal captures for {self.from_square.key}" )
             return False
             # raise ValueError(f'Cannot move {self.from_square.contains()} from {self.from_square} to {self.to_square}. It is not a valid move.')
         # Alternative for ChessCapture override: return only Squares occupied by passive_player's ChessPieces.
-
         # Cannot move a King into check
         if isinstance( self.from_square.contains(), King ):
             if self.board.is_in_check_from( self.to_square, passive_player ):
-                print( "Failed validate_piece_capture() for King in check" )
                 return False
-
         # Cannot move if the move would be a discovered check
         # TODO: this
         # Possible means: Make a duplicate board, _force_ the move, and then determine whether the moving_player's King is in check?
