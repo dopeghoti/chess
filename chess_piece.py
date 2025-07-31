@@ -77,21 +77,27 @@ class ChessPiece:
         if hasattr( self, 'has_moved' ):
             self.has_moved = True
         else:
-            raise AttributeError( f"{self} does not have a 'has_moved' attribute." )
+            # Don't raise this exception, just return for pieces that don't care about this.
+            # raise AttributeError( f"{self} does not have a 'has_moved' attribute." )
+            pass
     
     def raise_passant_flag( self ) -> None:
         """Set the vulnerable flag to True.  This is used for en passant."""
         if hasattr( self, 'vulnerable' ):
             self.vulnerable = True
         else:
-            raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
+            # Don't raise this exception, just return for pieces that don't care about this.
+            # raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
+            pass
         
     def lower_passant_flag( self ) -> None:
         """Set the vulnerable flag to False.  This is used for en passant."""
         if hasattr( self, 'vulnerable' ):
             self.vulnerable = False
         else:
-            raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
+            # Don't raise this exception, just return for pieces that don't care about this.
+            # raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
+            pass
 
 class Pawn(ChessPiece):
     """Represents a pawn chess piece."""

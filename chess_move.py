@@ -155,6 +155,7 @@ class ChessCapture(ChessMove):
             return False
             # raise ValueError(f'Cannot perform en passant capture on {self.to_square}. The square behind the captured Pawn is not empty.')
         # If all checks pass, return True
+
         return True
 
     def en_passant_final_square( self ) -> Square:
@@ -169,9 +170,11 @@ class ChessCapture(ChessMove):
             capturing_piece = self.from_square.contains()
             captured_piece = self.to_square.contains()
             if self.validate_is_successful_en_passant(capturing_piece, captured_piece): # type: ignore
-                # Remove the captured piece and place the capturing piece in the final square
-                self.board.squares[self.to_square.key].remove()  # Remove the captured piece
+                self.board[self.to_square.key].remove()  # Remove the captured piece
                 self.to_square = self.en_passant_final_square()  # Update to the final square
+            else:
+                # Regular capture
+                self.to_square.remove()  # Remove the captured piece
             self.board.move_piece(self.from_square.key, self.to_square.key)
             self.to_square.occupant.raise_moved_flag() # type: ignore because we know the piece is not None
             self.board.end_turn()
@@ -206,16 +209,11 @@ class ChessCapture(ChessMove):
         return True
 
     def validate( self ) -> bool:
-        """Validates the move according to chess rules (eventually)."""
-        # This is a placeholder for move validation logic.
-        # Actual validation would depend on the piece type and game state.
-        # But we can get started with some fundamental checks.
-
-        # For not, just return False for invalid moves.  If we end up needing Exceptions, we can do so
+        """Validates the capture according to chess rules (hopefully)."""
+        # For now, just return False for invalid moves.  If we end up needing Exceptions, we can do so
         # and will put in the code now, but it will be commented out.
+        # We're returning False so that we don't have to lean into exception handling for the game UI loop.
 
-        # TODO: handle castling, en passant, promotion, etc.
-        # TODO: implement ChessBoard.move() to handle moving a piece (NOT to be confused with a chess move)
         return all( ( self.validate_origin_constraints(), self.validate_other_constraints(), self.validate_piece_capture() ) )
     
 

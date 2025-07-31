@@ -303,7 +303,103 @@ class TestEnPassant(unittest.TestCase):
         move = ChessCapture(self.board,  'c5', 'e5')  # too far
         self.assertFalse(move.validate(), "En passant should be invalid from non-adjacent file")
 
+class TestGeneralCaptures(unittest.TestCase):
 
+    def setUp(self):
+        self.board = ChessBoard()
+        self.board.clear()
+
+    def test_pawn_captures_diagonally(self):
+        self.board['e4'].place(Pawn('light'))
+        self.board['d5'].place(Pawn('dark'))
+
+        move = ChessCapture(self.board, 'e4', 'd5')
+        self.assertTrue(move.validate(), "Pawn should be able to capture diagonally")
+        captured = move.execute()
+        self.assertIsNotNone(captured)
+        self.assertTrue(self.board['d5'].is_occupied())
+        self.board.clear()  # Clear the board for next test
+
+    def test_pawn_cannot_capture_forward(self):
+        self.board['e4'].place(Pawn('light'))
+        self.board['e5'].place(Pawn('dark'))  # Blocking square
+
+        move = ChessCapture(self.board, 'e4', 'e5')
+        self.assertFalse(move.validate(), "Pawn cannot capture forward")
+        self.board.clear()  # Clear the board for next test
+
+    def test_knight_can_capture_over_pieces(self):
+        self.board['g1'].place(Knight('light'))
+        self.board['f3'].place(Pawn('dark'))   # Capture target
+        self.board['e2'].place(Pawn('light'))  # Obstructing but irrelevant
+
+        move = ChessCapture(self.board, 'g1', 'f3')
+        self.assertTrue(move.validate(), "Knight should capture even if blocked along path")
+        captured = move.execute()
+        self.assertIsNotNone(captured)
+        self.assertEqual(captured.color, 'dark')
+        self.assertTrue(self.board['f3'].is_occupied())
+        self.board.clear()  # Clear the board for next test
+
+    def test_bishop_can_capture_clear_path(self):
+        self.board['c1'].place(Bishop('light'))
+        self.board['g5'].place(Pawn('dark'))  # Diagonal target
+
+        move = ChessCapture(self.board, 'c1', 'g5')
+        self.assertTrue(move.validate(), "Bishop should capture on clear diagonal")
+        captured = move.execute()
+        self.assertIsNotNone(captured)
+        self.assertTrue(self.board['g5'].is_occupied())
+        self.board.clear()  # Clear the board for next test
+
+    def test_bishop_cannot_capture_through_obstruction(self):
+        self.board['c1'].place(Bishop('light'))
+        self.board['e3'].place(Pawn('light'))  # Friendly piece blocking
+        self.board['g5'].place(Pawn('dark'))   # Valid capture target
+
+        move = ChessCapture(self.board, 'c1', 'g5')
+        self.assertFalse(move.validate(), "Bishop should not capture through obstruction")
+        self.board.clear()  # Clear the board for next test
+
+    def test_rook_can_capture_clear_path(self):
+        self.board['a1'].place(Rook('light'))
+        self.board['a7'].place(Pawn('dark'))
+
+        move = ChessCapture(self.board, 'a1', 'a7')
+        self.assertTrue(move.validate(), "Rook should capture along open file")
+        captured = move.execute()
+        self.assertIsNotNone(captured)
+        self.assertEqual(captured.color, 'dark')
+        self.board.clear()  # Clear the board for next test
+
+    def test_rook_cannot_capture_through_piece(self):
+        self.board['a1'].place(Rook('light'))
+        self.board['a3'].place(Pawn('light'))  # Friendly piece obstructing
+        self.board['a7'].place(Pawn('dark'))   # Valid target beyond obstruction
+
+        move = ChessCapture(self.board, 'a1', 'a7')
+        self.assertFalse(move.validate(), "Rook should not capture through blocking piece")
+        self.board.clear()  # Clear the board for next test
+
+    def test_queen_can_capture_long_range(self):
+        self.board['d1'].place(Queen('light'))
+        self.board['h5'].place(Pawn('dark'))
+
+        move = ChessCapture(self.board, 'd1', 'h5')
+        self.assertTrue(move.validate(), "Queen should capture along clear diagonal")
+        captured = move.execute()
+        self.assertIsNotNone(captured)
+        self.assertEqual(captured.color, 'dark')
+        self.board.clear()  # Clear the board for next test
+
+    def test_queen_blocked_from_capture(self):
+        self.board['d1'].place(Queen('light'))
+        self.board['f3'].place(Pawn('light'))  # Obstructing own piece
+        self.board['h5'].place(Pawn('dark'))
+
+        move = ChessCapture(self.board, 'd1', 'h5')
+        self.assertFalse(move.validate(), "Queen should not capture through obstruction")
+        self.board.clear()  # Clear the board for next test
 
 if __name__ == "__main__":
     unittest.main()
