@@ -1,14 +1,15 @@
 from chess_piece import *
 from color import Color as C
+from copy import copy, deepcopy
 from typing import Optional
 
 class Square:
     def __init__(self, color: Optional[str] = None, file: Optional[str] = None, rank: Optional[int] = None ):
         if None in (color, file, rank):
             raise ValueError( f"Color, file, and rank must be specified for Square.  {color=}, {file=}, {rank=}" )
-        if color is not None and color.lower() not in [ 'light', 'dark' ]: 
+        if color is not None and color.lower() not in [ 'light', 'dark' ]:
             raise ValueError( f"Color must be either 'light' or 'dark'.  {color=}." )
-        if rank is not None and int(rank) - 1 not in range( 8 ): 
+        if rank is not None and int(rank) - 1 not in range( 8 ):
             raise ValueError( f"Rank must be between 1 and 8.  {rank=}" )
         if file is not None and file.lower() not in 'abcdefgh':
             raise ValueError( f"File must be one of 'a' to 'h'.  {file=}" )
@@ -18,7 +19,7 @@ class Square:
     def __hash__( self ) -> int:
         """Returns a hash of the square."""
         return hash((self.color, self.file, self.rank, self.occupant, self.key))
-    
+
     def __eq__( self, other ) -> bool:
         """Check if two squares are equal based on color, file, rank, and occupant."""
         if not isinstance(other, Square):
@@ -153,7 +154,7 @@ class ChessBoard:
         piece = self.squares[square_key].contains()
         if piece is None:
             return []  # No piece on the square, no legal moves
-        
+
         # Get the piece's movement pattern and translate it to squares
         legal_moves = []
         for move in piece.get_move_pattern():
@@ -179,7 +180,7 @@ class ChessBoard:
                     step_rank += move[1]
         # Remove duplicates and return the list of legal moves
         return list(set(legal_moves))
-    
+
     def get_legal_captures( self, square_key: str ) -> list[Square]:
         """Get all legal captures for the piece on the specified square."""
         if square_key not in self.squares:
@@ -200,7 +201,7 @@ class ChessBoard:
                         # If we are capturing with a Pawn, and the capture is en passant,
                         # we need to check if the target square is vulnerable
                         if isinstance(piece, Pawn) and capture in [(-1, 0), (1, 0)]:
-                            if target_square.contains().is_vulnerable(): 
+                            if target_square.contains().is_vulnerable():
                                 # Check to see if the square behind the target square is empty
                                 final_rank = target_rank + piece.direction
                                 final_square_key = f"{target_square_key[0]}{final_rank}"
@@ -227,7 +228,7 @@ class ChessBoard:
 
     def move_piece( self, from_key: str, to_key: str ) -> None:
         """Move a piece from one Square to another.
-        
+
         This ls literally just moving the piece, it is not a Chess Move and does not
         validate game logic or rules.  That will be handled by ChessMove.
         """
@@ -236,9 +237,9 @@ class ChessBoard:
             raise ValueError(f"Invalid square keys: {from_key}, {to_key}. Must be in the format 'a1' to 'h8'.")
         if from_key == to_key:
             raise ValueError(f"Cannot move piece to the same square: {from_key}.")
-        
+
         from_square = self.squares[from_key]
-        to_square = self.squares[to_key]    
+        to_square = self.squares[to_key]
 
         if not all( ( isinstance(from_square, Square), isinstance(to_square, Square) ) ):
             raise TypeError("from_square and to_square must be instances of Square.")
@@ -246,7 +247,7 @@ class ChessBoard:
             raise ValueError(f"No piece on {from_square} to move.")
         if to_square.is_occupied():
             raise ValueError(f"Cannot move to {to_square}. It is already occupied by {to_square.contains()}.")
-        
+
         to_square.place( from_square.remove() )
 
     def clear(self):
@@ -303,7 +304,7 @@ class ChessBoard:
 
             file_offset = ord(target_square.file) - ord(square.file)
             rank_offset = target_square.rank - square.rank # type: ignore
-            
+
             # If there's no offset, it's the same square, so no attack
             if file_offset == 0 and rank_offset == 0:
                 continue
@@ -336,7 +337,7 @@ class ChessBoard:
         """Check if the path is clear for a sliding piece's attack."""
         file_step = 0 if file_offset == 0 else (1 if file_offset > 0 else -1 )
         rank_step = 0 if rank_offset == 0 else (1 if rank_offset > 0 else -1 )
-        
+
         # Start from the square after the attacking piece
         current_file_ord = ord( from_square.file ) + file_step
         current_rank = from_square.rank + rank_step
@@ -364,7 +365,7 @@ class ChessBoard:
 def main():
     b = ChessBoard()
     b.setup()
-    print( b ) 
+    print( b )
 
 if __name__ == '__main__':
     main()
