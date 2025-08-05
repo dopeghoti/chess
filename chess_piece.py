@@ -1,4 +1,5 @@
 from typing import Optional
+from copy import deepcopy
 
 class ChessPiece:
     """It should be noted that because we're (trying to) use the Unicode
@@ -25,6 +26,7 @@ class ChessPiece:
         if type(self) == ChessPiece:
             raise NotImplementedError("ChessPiece should not be instantiated directly")
         self.name = self.__class__.__name__.lower() # e. g. a Knight instance's name will be 'knight'
+        self.direction = 0 # Only Pawns use this, setting it to ±1 depending on color
 
     def __str__( self ):
         return self.__class__.glyph[self.color]
@@ -71,6 +73,15 @@ class ChessPiece:
             return self.vulnerable
         else:
             raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
+
+    def raise_check_flag( self ) -> None:
+        """Set the has_been_in_check flag to True.  This is used for castling."""
+        if hasattr( self, 'has_been_in_check' ):
+            self.has_been_in_check = True
+        else:
+            # Don't raise this exception, just return for pieces that don't care about this.
+            # raise AttributeError( f"{self} does not have a 'has_been_in_check' attribute." )
+            pass
 
     def raise_moved_flag( self ) -> None:
         """Set the has_moved flag to True.  This is used for castling."""
@@ -126,7 +137,7 @@ class Pawn(ChessPiece):
                 ( -1, self.direction ),  # Diagonal left
                 (  1, self.direction ),  # Diagonal right
                 ( -1, 0 ),               # en-pessant left (validation will be in ChessCapture)
-                (  1, 0 )                # en-pessant right (validation will be in ChessCapture)t
+                (  1, 0 )                # en-pessant right (validation will be in ChessCapture)
                 ]
         return captures
 

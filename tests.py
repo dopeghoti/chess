@@ -274,7 +274,7 @@ class TestEnPassant(unittest.TestCase):
         self.board['d4'].contains().raise_moved_flag()  # Set the has_moved flag to True
         # Now we can capture en passant
         move = ChessCapture(self.board, 'e4', 'd4')
-        self.assertTrue(move.validate(), f"En passant move should be valid {self.board.turn=} {move.from_square.contains()= }" )
+        self.assertTrue(move.validate(), f"En passant move should be valid {self.board.turn=} {move.move_from['square'].contains()= }" )
         captured = move.execute()
         self.assertIsNotNone(captured, "Capture should have occurred")
         self.assertTrue(self.board['d3'].is_occupied(), "Capturing pawn should be on d3")
@@ -481,6 +481,13 @@ class TestCastling(unittest.TestCase):
         move = ChessCastle(self.board, 'e1', 'f1')  # Not a valid castle target
         self.assertFalse(move.validate())
         self.board.clear()  # Clear the board for next test
+
+#class TestDiscoveredChecks( unittest.TestCase ):
+#    def setUp( self ):
+#        self.board = ChessBoard()
+#        self.board.clear()
+
+    
 
 
 

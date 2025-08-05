@@ -30,6 +30,17 @@ class Square:
             self.rank == other.rank,
             self.occupant == other.occupant) )
 
+    def __deepcopy__( self, memo ):
+        """Create a deep copy of the square."""
+        new_square = self.__class__(
+            deepcopy( self.color, memo ),
+            deepcopy( self.file, memo ),
+            deepcopy( self.rank, memo )
+        )
+        if self.is_occupied():
+            new_square.occupant = deepcopy( self.occupant, memo )
+        return new_square
+
     def is_occupied(self) -> bool:
         """Check if the square is occupied by a chess piece."""
         return self.occupant is not None
@@ -93,14 +104,34 @@ class ChessBoard:
 
     def __eq__( self, other ) -> bool:
         """Check if two chess boards are equal based on their squares."""
+        # Naturally, the Other item must be a ChessBoard.
         if not isinstance(other, ChessBoard):
             return False
-        return all( self.squares[key] == other.squares[key] for key in self.squares )
-    
+        # Check if the number of squares and their contents are the same
+        if len( self.squares ) != len( other.squares ) or not all( [ self.squares[key] == other.squares[key] for key in self.squares ] ):
+            return False
+        return all( ( self.turn == other.turn, self.turns == other.turns, self.game_states == other.game_states ) )
+
     def __hash__( self ) -> int:
         """Returns a hash of the chess board."""
-        # TODO: This hash won't work because its members are mutable. Make it instead calculate from immutable copies?
-        return hash( [ self.squares, self.turn, self.turns, self.game_states ] )
+        # First we need to make an immutable representation of the Squares dictionary:
+        squares_tuple = tuple(sorted((key, hash(value)) for key, value in self.squares.items()))
+        # Now, same for game states:
+        game_states_tuple = tuple(sorted((key, value) for key, value in self.game_states.items()))
+        # Finally, we can return a hash of the immutables:
+        return hash( ( self.turn, self.turns, squares_tuple, game_states_tuple ) )
+
+    def __deepcopy__( self, memo ):
+        """Create an exact copy of this chess board.  Primarily used for the following purposes:
+         - Saving game states
+         - Looking for discovered checks in proposed moces"""
+        new_board = ChessBoard()
+        for k, v in self.squares.items():
+            new_board.squares[k] = deepcopy(v)
+        new_board.turn = str( self.turn )
+        new_board.turns = int( self.turns )
+        new_board.game_states = self.game_states.copy()
+        return new_board
 
     def end_turn( self ) -> None:
         # When ending a side's half-turn, we need to reset the en passant flag for all pawns of that side.
@@ -108,7 +139,9 @@ class ChessBoard:
             piece = _.contains()
             if isinstance(piece, Pawn) and piece.color != self.turn:
                 piece.lower_passant_flag()
-        # TODO: Look for Kings in check
+            if isinstance(piece, King) and piece.color != self.turn:
+                piece.raise_check_flag()
+        # DONE: Look for Kings in check
         # TODO: Look for checkmates (!)  Hoo boy, this will be fun.
         # TODO: Look for repetition stalemates once we save board states
         # TODO: Look for stalemate: no legal moves
@@ -116,6 +149,9 @@ class ChessBoard:
         # TODO: Look for forced draw due to lack of pieces on both sides
         if self.turn == 'light':
             self.turns += 1
+
+
+        self.game_states[ ( self.turns, self.turn ) ] = deepcopy( self )
         self.turn = 'light' if self.turn == 'dark' else 'dark'
 
     def place_piece(self, piece: ChessPiece, file: str, rank: int) -> None:
@@ -146,6 +182,39 @@ class ChessBoard:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         return self.squares[square_key].contains()
 
+    def is_discovered_check( self, from_square_key: str, to_square_key: str, is_capture: bool = False ) -> bool:
+        """Determine whether a proposed move would be a disovered check, so that
+        it can be eliminated from a proposed list of moves or captures to return to ChessMove"""
+        # Make a copy of the board for starters
+        hypothetical = deepcopy( self )
+        # We have a from_square_key and a to_square_key.  Let's get keys and squares for both.
+        from_square = hypothetical[from_square_key]
+        to_square = hypothetical[to_square_key]
+        moving_player = self.turn
+        passive_player = 'light' if self.turn == 'dark' else 'dark'
+
+        if is_capture:
+            # If this is an en passant capture, we need to remove the pawn and then shift the to_square 
+            # before making the hypothetical move.  So let's determine if this is en-passant:
+            if is_capture and from_square.rank == to_square.rank and isinstance( from_square.contains(), Pawn ): # it is!
+                to_square.remove()
+                new_rank = from_square.rank + from_square.contains().direction # type: ignore as we know origin square contains a Pawn
+                to_square = hypothetical[ f'{to_square.file}{str(new_rank)}']
+                to_square_key = to_square.key
+            else: # It's a capture, but not en passant
+                to_square.remove()
+        hypothetical.move_piece( from_square_key, to_square_key )
+        # Go through the checklist for discovered-check sitiations
+        for square_key in hypothetical.squares:
+            piece = hypothetical.get_piece(square_key)
+            if piece is not None and isinstance( piece, King ) and piece.color == moving_player:
+                if hypothetical.is_in_check_from( hypothetical.squares[square_key], passive_player ):
+                    # We have a discovered check!
+                    return True
+        # Well, I guess it's not.
+        return False
+
+
     def get_legal_moves( self, square_key: str ) -> list[Square]:
         """Get all legal moves for the piece on the specified square.
         Captures are NOT included in the list of legal moves, only moves to empty squares."""
@@ -157,6 +226,7 @@ class ChessBoard:
 
         # Get the piece's movement pattern and translate it to squares
         legal_moves = []
+        possible_moves = []
         for move in piece.get_move_pattern():
             target_file_ord = ord(square_key[0]) + move[0]
             target_rank = int(square_key[1]) + move[1]
@@ -164,7 +234,7 @@ class ChessBoard:
                 target_square_key = f"{chr(target_file_ord)}{target_rank}"
                 target_square = self.squares[target_square_key]
                 if not target_square.is_occupied(): # Occupied squares are not legal moves
-                    legal_moves.append(target_square)
+                    possible_moves.append(target_square)
             if piece.is_sliding_piece():
                 # For sliding pieces, we need to check all squares in the direction of movement
                 step_file_ord = ord(square_key[0]) + move[0]
@@ -173,12 +243,21 @@ class ChessBoard:
                     step_square_key = f"{chr(step_file_ord)}{step_rank}"
                     step_square = self.squares[step_square_key]
                     if not step_square.is_occupied():
-                        legal_moves.append(step_square)
+                        possible_moves.append(step_square)
                     else:
                         break
                     step_file_ord += move[0]
                     step_rank += move[1]
         # Remove duplicates and return the list of legal moves
+        possible_moves = list( set( possible_moves ) )
+
+        # Okay, now we have a list of presumable legal moves.  For each one, we need to
+        # see if it would be a discovered check and, if so, remove it from the list.
+        for possible_move in list( set( possible_moves ) ): # strip duplicate possible moves
+            if self.is_discovered_check( square_key, possible_move.key, False ):
+                pass
+            else:
+                legal_moves.append( possible_move )
         return list(set(legal_moves))
 
     def get_legal_captures( self, square_key: str ) -> list[Square]:
@@ -189,6 +268,7 @@ class ChessBoard:
         if piece is None:
             return [] # No piece on the square, no legal captures
         # Get the piece's capture pattern and translate it to squares
+        possible_captures = []
         legal_captures = []
         for capture in piece.get_capture_pattern():
             target_file_ord = ord(square_key[0]) + capture[0]
@@ -206,9 +286,9 @@ class ChessBoard:
                                 final_rank = target_rank + piece.direction
                                 final_square_key = f"{target_square_key[0]}{final_rank}"
                                 if not self.squares[final_square_key].is_occupied():
-                                    legal_captures.append(target_square_key)
+                                    possible_captures.append(target_square)
                         else:
-                            legal_captures.append(target_square_key)
+                            possible_captures.append(target_square)
             if piece.is_sliding_piece():
                 # For sliding pieces, we need to check all squares in the direction of capture
                 step_file_ord = ord(square_key[0]) + capture[0]
@@ -217,12 +297,19 @@ class ChessBoard:
                     step_square_key = f"{chr(step_file_ord)}{step_rank}"
                     step_square = self.squares[step_square_key]
                     if step_square.is_occupied() and step_square.contains().color != piece.color:
-                        legal_captures.append(step_square_key)
+                        possible_captures.append(step_square)
                         break
                     elif step_square.is_occupied():
                         break
                     step_file_ord += capture[0]
                     step_rank += capture[1]
+        # Okay, now we have a list of presumable legal captures.  For each one, we need to
+        # see if it would be a discovered check and, if so, remove it from the list.
+        for possible_capture in list( set( possible_captures ) ): # strip duplicate possible moves
+            if self.is_discovered_check( square_key, possible_capture.key, True ):
+                pass
+            else:
+                legal_captures.append( possible_capture )
         # Remove duplicates and return the list of legal captures
         return list(set(legal_captures))
 
