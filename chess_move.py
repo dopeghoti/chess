@@ -38,6 +38,28 @@ class ChessMetaMove():
     def __hash__( self ) -> int:
         return hash( ( self.board, self.move_to, self.move_from ) )
     
+    @classmethod
+    def from_long_notation( cls, board: ChessBoard, notation: str ):
+        """Factory to create appropriate Move instance based on long
+        move notation, i. e. 'e2e4'."""
+        # Local import to avoid circular dependency issues
+        from chess_notation import ChessNotationConverter as CC
+        converter = CC( board )
+        return converter.create_move_from_long_notation( notation )
+
+    def to_notation( self ) -> str:
+        """Represent this move in standard algebraic notataion."""
+        # Local import to avoid circular dependency issues
+        from chess_notation import ChessNotationConverter as CC
+        converter = CC( self.board )
+        long_notation = f"{self.move_from['key']}{self.move_to['key']}"
+        return converter.long_to_algebraic( long_notation )
+
+    def to_long_notation( self ) -> str:
+        """Represent this move in explicit long algebraic notation."""
+        long_notation = f"{self.move_from['key']}{self.move_to['key']}"
+        return long_notation
+
     def flag_movement( self, piece: Pawn | Rook | King ) -> None:
         """ Raises the has_moved flag on appropriate ChessPiece objects"""
         piece.raise_moved_flag()
@@ -111,7 +133,7 @@ class ChessMove(ChessMetaMove):
         """Validation for the actual move, with chess game rule logic"""
 
         # Is the destination in the Piece's movement pattern?
-        if self.move_to['key'] not in [ key for key in self.board.get_legal_moves( self.move_from['key'] ) ]:
+        if self.move_to['square'] not in [ key for key in self.board.get_legal_moves( self.move_from['key'] ) ]:
             # return False
             raise ChessCannotMoveOutsideMovementPatternException( f'Attempting to move {self.piece.name} illegally from {self.move_from["key"]} to {self.move_to["key"]}.' ) 
         # If all of the validation checks pass, return True
@@ -146,13 +168,12 @@ class ChessCapture(ChessMetaMove):
             # return False
             blocker = self.move_to['square'].contains()
             raise ChessCannotCaptureFriendlyPieceException( f'Cannot capture friendly {blocker.color} {blocker.name} at {self.move_to["key"]}.' )
-            # raise ValueError(f'Cannot capture {self.to_square.contains()} on {self.to_square}. It is a friendly piece.')
         return True
 
     def validate_is_successful_en_passant( self, capturing_piece: Pawn, captured_piece: ChessPiece ) -> bool:
         """Check if the move is an en passant capture.
         
-        Current this is both checking whether a move even _is_ an en passant attempt and _also_ validating its legality.  We
+        Currently this is both checking whether a move even _is_ an en passant attempt and _also_ validating its legality.  We
         don't want to throw Exceptions until this is broken into separate identification (which will not throw) and validation
         (which will).  For now, continue to return Falso but I have the exceptions here ready for when the logic flow is ready."""
         # Both pieces must be Pawns:
@@ -169,7 +190,7 @@ class ChessCapture(ChessMetaMove):
             # raise ChessCannotCaptureEnPassantWhenNotVulnerableException ( 'Target of en passant capture is not vulnerable.' )
             return False
         # The space behind the captured Pawn must be empty:
-        final_rank = self.to_square.rank + capturing_piece.direction # type: ignore
+        final_rank = self.move_to['square'].rank + capturing_piece.direction # type: ignore
         final_square_key = f"{self.move_to['square'].file}{final_rank}"
         if self.board.squares[final_square_key].is_occupied():
             blocker = self.board[final_square_key].contains()
@@ -180,7 +201,7 @@ class ChessCapture(ChessMetaMove):
 
     def en_passant_final_square( self ) -> Square:
         """Returns the final square for an en passant capture."""
-        final_rank = self.to_square.rank + self.from_square.contains().direction # pyright: ignore[reportAttributeAccessIssue]
+        final_rank = self.move_to_['square'].rank + self.move_from['square'].contains().direction # pyright: ignore[reportAttributeAccessIssue]
         final_square_key = f"{self.move_to['square'].file}{final_rank}"
         return self.board.squares[final_square_key]
 
@@ -194,12 +215,13 @@ class ChessCapture(ChessMetaMove):
                 self.board.remove_piece( self.move_to['key'] )  # Remove the captured piece
                 final_square = self.en_passant_final_square()
                 self.board.move_piece( self.move_from['key'], final_square.key )
-                final_square.contains().raise_moved_flag()
+                self.flag_movement( final_square.contains() ) # type: ignore because we know the piece is
             else:
                 # Regular capture
                 self.board.remove_piece( self.move_to['key'] )  # Remove the captured piece
                 self.board.move_piece(self.move_from['key'], self.move_to['key'])
-                self.move_to['square'].occupant.raise_moved_flag() # type: ignore because we know the piece is not None
+                self.flag_movement( self.piece ) # type: ignore because we know the piece is)
+                # self.move_to['square'].occupant.raise_moved_flag() # type: ignore because we know the piece is not None
             self.board.end_turn()
             return captured_piece
         else:
@@ -279,10 +301,10 @@ class ChessCastle(ChessMetaMove):
         rook = self.board[rook_key].contains() # pyright: ignore[reportPossiblyUnboundVariable]
         if not isinstance(rook, Rook):
             # return False
-            raise ChessCannotCastleWithoutRookException( f'Cannot castle to {rook_key} as there is no rook there.' )
+            raise ChessCannotCastleWithoutRookException( f'Cannot castle to {rook_key} as there is no rook there.' ) # pyright: ignore[reportPossiblyUnboundVariable]
         if rook.has_moved:
             # return False
-            raise ChessCannotCastleIfRookHasMovedException( f'Cannot castle as root at {rook_key} has already moved.' )
+            raise ChessCannotCastleIfRookHasMovedException( f'Cannot castle as root at {rook_key} has already moved.' ) # pyright: ignore[reportPossiblyUnboundVariable]
 
         # TODO: check if the squares the King moves through are not under attack.
         # Verify this works properly.

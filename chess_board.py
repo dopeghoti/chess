@@ -425,12 +425,18 @@ class ChessBoard:
         file_step = 0 if file_offset == 0 else (1 if file_offset > 0 else -1 )
         rank_step = 0 if rank_offset == 0 else (1 if rank_offset > 0 else -1 )
 
+        # We're not currently handling diagonals properly.  This thinks that Qd1 can see Ke8 for example.  So let's rule out diagonals that
+        # don't actually line up.
+        if file_offset and rank_offset and abs( file_offset ) != abs( rank_offset ):
+            # This is not on the _same_ diagonal, so-
+            return False
+
         # Start from the square after the attacking piece
         current_file_ord = ord( from_square.file ) + file_step
         current_rank = from_square.rank + rank_step
 
         # Check each square in the path (excluding the target itself)
-        while( current_file_ord != ord(to_square.file) or current_rank != to_square.rank ):
+        while( current_file_ord != ord(to_square.file) or current_rank != to_square.rank ) and ( 0 < current_rank < 9 ) and ( 96 < current_file_ord < 105 ):
               current_square_key = f'{chr(current_file_ord)}{current_rank}'
               if self.squares[current_square_key].is_occupied():
                   return False # Path is blocked
