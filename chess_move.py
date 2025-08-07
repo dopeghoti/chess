@@ -237,9 +237,9 @@ class ChessCapture(ChessMetaMove):
         moving_player = self.board.turn
         passive_player = 'light' if moving_player == 'dark' else 'dark'
         # Is the destination in the Piece's capture pattern?
-        if self.move_to['key'] not in [ key for key in self.board.get_legal_captures( self.move_from['key'] ) ]:
+        if self.move_to['square'] not in self.board.get_legal_captures( self.move_from['key'] ):
             # return False
-            raise ChessCannotCaptureOutsideCapturePatternException ( f'Attempting to move {self.piece.name} illegally from {self.move_from["key"]} to {self.move_to["key"]}.' ) 
+            raise ChessCannotCaptureOutsideCapturePatternException ( f'Attempting to capture with {self.piece.name} illegally from {self.move_from["key"]} to {self.move_to["key"]}. {repr(self)}' ) 
         # If all of the validation checks pass, return True
         return True
 
