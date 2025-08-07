@@ -353,7 +353,21 @@ def demo_enhanced_converter():
         except ChessException as e:
             print( f'Chess move validation exception thrown: {e}' )
     print( f'Final board state:\n{board}' )
-        
+
+    print("\n=== En Passant Validation Demo ===")
+    board.clear()
+    board.place_piece( Pawn('light'), 'f', 5 )
+    board.place_piece( Pawn('dark'),  'e', 7 )
+    board.turn = 'dark'
+    for move in [ 'e7e5', 'f5xe5' ]:
+        print( board )
+        print ( f'Attempting move {move}.' )
+        chess_move = CM.from_long_notation( board, move )
+        chess_move.execute()
+    print( f'Final board state:\n{board}' )
+
+
+
 
 if __name__ == "__main__":
     demo_enhanced_converter()
