@@ -242,6 +242,13 @@ class ChessCapture(ChessMetaMove):
             raise ChessCannotCaptureOutsideCapturePatternException ( f'Attempting to capture with {self.piece.name} illegally from {self.move_from["key"]} to {self.move_to["key"]}. {repr(self)}' ) 
         # If all of the validation checks pass, return True
         return True
+    
+    def __str__(self):
+        return f"{self.piece.name} takes from {self.move_from['key']} to {self.move_to['key']}" 
+    
+    def __repr__(self):
+        return f"ChessCapture({self.board}, {self.move_from['key']}, {self.move_to['key']}"
+
 
 class ChessCastle(ChessMetaMove):
     """Represents a chess castling move."""
@@ -360,3 +367,9 @@ class ChessCastle(ChessMetaMove):
         else:
             return None
             # raise ValueError("Invalid castling move.")
+
+    def __str__(self):
+        return f"{self.piece.name} castles from {self.move_from['key']} to {self.move_to['key']}" 
+    
+    def __repr__(self):
+        return f"ChessCastle({self.board}, {self.move_from['key']}, {self.move_to['key']}"
