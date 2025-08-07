@@ -142,6 +142,8 @@ class ChessMove(ChessMetaMove):
     def execute(self) -> None:
         """Executes the move if it is valid."""
         if self.validate():
+            if isinstance( self.piece, Pawn ) and abs( self.move_from['square'].rank - self.move_to['square'].rank ) == 2:
+                self.flag_vulnerable( self.piece )
             self.board.move_piece(self.move_from['key'], self.move_to['key'] )
             if type(self.piece) in ( Pawn, King, Rook ):
                 self.flag_movement( self.piece )
@@ -201,7 +203,7 @@ class ChessCapture(ChessMetaMove):
 
     def en_passant_final_square( self ) -> Square:
         """Returns the final square for an en passant capture."""
-        final_rank = self.move_to_['square'].rank + self.move_from['square'].contains().direction # pyright: ignore[reportAttributeAccessIssue]
+        final_rank = self.move_to['square'].rank + self.move_from['square'].contains().direction
         final_square_key = f"{self.move_to['square'].file}{final_rank}"
         return self.board.squares[final_square_key]
 
@@ -210,12 +212,14 @@ class ChessCapture(ChessMetaMove):
         if self.validate():
             capturing_piece = self.move_from['square'].contains()
             captured_piece = self.move_to['square'].contains()
-            if self.validate_is_successful_en_passant(capturing_piece, captured_piece): # type: ignore
-                # En-passant capture
-                self.board.remove_piece( self.move_to['key'] )  # Remove the captured piece
-                final_square = self.en_passant_final_square()
-                self.board.move_piece( self.move_from['key'], final_square.key )
-                self.flag_movement( final_square.contains() ) # type: ignore because we know the piece is
+            if isinstance( capturing_piece, Pawn ) and isinstance( captured_piece, Pawn ) and \
+                    self.move_from['square'].rank == self.move_to['square'].rank: # This is a lateral move, presumptively this is en-passant
+                if self.validate_is_successful_en_passant( capturing_piece, captured_piece ):
+                    # En-passant capture
+                    self.board.remove_piece( self.move_to['key'] )  # Remove the captured piece
+                    final_square = self.en_passant_final_square()
+                    self.board.move_piece( self.move_from['key'], final_square.key )
+                    self.flag_movement( final_square.contains() ) # type: ignore because we know the piece is
             else:
                 # Regular capture
                 self.board.remove_piece( self.move_to['key'] )  # Remove the captured piece

@@ -280,10 +280,11 @@ class ChessBoard:
                 target_square = self.squares[target_square_key]
                 if target_square is not None:
                     if target_square.is_occupied() and target_square.contains().color != piece.color:
+                        captured_piece = self[target_square_key].contains()
                         # If we are capturing with a Pawn, and the capture is en passant,
                         # we need to check if the target square is vulnerable
-                        if isinstance(piece, Pawn) and capture in [(-1, 0), (1, 0)]:
-                            if target_square.contains().is_vulnerable():
+                        if isinstance( piece, Pawn ) and isinstance ( captured_piece, Pawn ) and capture in [ ( -1, 0 ), ( 1, 0 ) ]:
+                            if captured_piece.is_vulnerable():
                                 # Check to see if the square behind the target square is empty
                                 final_rank = target_rank + piece.direction
                                 final_square_key = f"{target_square_key[0]}{final_rank}"
