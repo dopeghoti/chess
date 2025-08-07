@@ -140,7 +140,9 @@ class ChessBoard:
             if isinstance(piece, Pawn) and piece.color != self.turn:
                 piece.lower_passant_flag()
             if isinstance(piece, King) and piece.color != self.turn:
-                piece.raise_check_flag()
+                if self.is_in_check_from( _, self.turn ):
+                    piece.raise_check_flag()
+        # DONE: Clear en-passant vulnerable flags
         # DONE: Look for Kings in check
         # TODO: Look for checkmates (!)  Hoo boy, this will be fun.
         # TODO: Look for repetition stalemates once we save board states
