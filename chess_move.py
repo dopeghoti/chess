@@ -81,7 +81,7 @@ class ChessMetaMove():
         if self.move_from['square'].contains().color != self.board.turn: # type: ignore because we know the color is not None
             # return False
             piece = self.move_from['square'].contains()
-            raise ChessCannotMoveOutOfTurnException( f'Attempting to move {piece.color} while the ChessBoard see it to be {self.board.turn}\'s turn.' )
+            raise ChessCannotMoveOutOfTurnException( f'Attempting to move {piece.color} while the ChessBoard sees it to be {self.board.turn}\'s turn.' )
         return True
     
     def validate_other_constraints( self ) -> bool:
@@ -298,7 +298,7 @@ class ChessCastle(ChessMetaMove):
             elif self.move_to['key'] == 'c8':
                 if any( ( self.board['b8'].is_occupied(), self.board['c8'].is_occupied(), self.board['d8'].is_occupied() ) ):
                     # return False
-                    raise ChessCannotCastleThroughOccupiedSquaresException( 'Cannot casthe through occupied squares b8, b8.' )
+                    raise ChessCannotCastleThroughOccupiedSquaresException( 'Cannot castle through occupied squares b8, b8.' )
                 rook_key = 'a8'
 
         # Validate the Rook has not moved and that the piece in the Rook's spot is indeed a Rook:
