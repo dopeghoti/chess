@@ -183,7 +183,7 @@ class ChessBoard:
         passive_player = 'light' if self.turn == 'dark' else 'dark'
 
         if is_capture:
-            # If this is an en passant capture, we need to remove the pawn and then shift the to_square 
+            # If this is an en passant capture, we need to remove the pawn and then shift the to_square
             # before making the hypothetical move.  So let's determine if this is en-passant:
             if is_capture and from_square.rank == to_square.rank and isinstance( from_square.contains(), Pawn ): # it is!
                 to_square.remove()
@@ -216,27 +216,30 @@ class ChessBoard:
         # Get the piece's movement pattern and translate it to squares
         legal_moves = []
         possible_moves = []
-        for move in piece.get_move_pattern():
-            target_file_ord = ord(square_key[0]) + move[0]
-            target_rank = int(square_key[1]) + move[1]
-            if 97 <= target_file_ord <= 104 and 1 <= target_rank <= 8:
-                target_square_key = f"{chr(target_file_ord)}{target_rank}"
-                target_square = self.squares[target_square_key]
-                if not target_square.is_occupied(): # Occupied squares are not legal moves
-                    possible_moves.append(target_square)
-            if piece.is_sliding_piece():
-                # For sliding pieces, we need to check all squares in the direction of movement
-                step_file_ord = ord(square_key[0]) + move[0]
-                step_rank = int(square_key[1]) + move[1]
-                while 97 <= step_file_ord <= 104 and 1 <= step_rank <= 8:
-                    step_square_key = f"{chr(step_file_ord)}{step_rank}"
-                    step_square = self.squares[step_square_key]
-                    if not step_square.is_occupied():
-                        possible_moves.append(step_square)
-                    else:
-                        break
-                    step_file_ord += move[0]
-                    step_rank += move[1]
+
+        for file_dir, rank_dir in piece.get_move_pattern():
+            current_file_ord = ord(square_key[0])
+            current_rank = int(square_key[1])
+
+            while True: # I hate infinite loops but we _will_ break out eventually.
+                current_file_ord += file_dir
+                current_rank += rank_dir
+
+                if not ( 97 <= current_file_ord <= 104 and 1 <= current_rank <= 8 ):
+                    # We're off the board, and so we
+                    break
+                target_square = self.squares[f'{chr(current_file_ord)}{current_rank}']
+
+                if target_square.is_occupied():
+                    # The path is blocked by a piece, and so we
+                    break
+
+                possible_moves.append( target_square )
+
+                if not piece.is_sliding_piece():
+                    # No further squares in this direction to check, and so we
+                    break
+
         # Remove duplicates and return the list of legal moves
         possible_moves = list( set( possible_moves ) )
 
@@ -257,6 +260,7 @@ class ChessBoard:
         # Get the piece's capture pattern and translate it to squares
         possible_captures = []
         legal_captures = []
+
         for capture in piece.get_capture_pattern():
             target_file_ord = ord(square_key[0]) + capture[0]
             target_rank = int(square_key[1]) + capture[1]
@@ -291,9 +295,11 @@ class ChessBoard:
                         break
                     step_file_ord += capture[0]
                     step_rank += capture[1]
+        possible_captures = list( set( possible_captures ) ) # Strip duplicates
+
         # Okay, now we have a list of presumable legal captures.  For each one, we need to
         # see if it would be a discovered check and, if so, remove it from the list.
-        for possible_capture in list( set( possible_captures ) ): # strip duplicate possible moves
+        for possible_capture in possible_captures:
             if not self.is_discovered_check( square_key, possible_capture.key, True ):
                 legal_captures.append( possible_capture )
         # Remove duplicates and return the list of legal captures
