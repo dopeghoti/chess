@@ -421,6 +421,7 @@ class TestCastling(unittest.TestCase):
         rook_pos = f'{"h" if kingside else "a"}{rank}'
         self.board[king_pos].place(King(color))
         self.board[rook_pos].place(Rook(color))
+        self.board.turn = color
 
     def test_valid_kingside_castle_light(self):
         self.setup_king_rook_pair('light', kingside=True)
