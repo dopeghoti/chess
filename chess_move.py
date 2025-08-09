@@ -1,6 +1,7 @@
 from chess_piece import Pawn, Rook, Knight, Bishop, Queen, King
 from chess_board import *
 from chess_exception import *
+from typing import Type
 
 class ChessMetaMove():
     """An abstract representation of a chess move.  Not to be instantiated directly.
@@ -112,13 +113,41 @@ class ChessMetaMove():
         except ChessException as e:
             raise e
         
+    def promote( self, location: Square, new_type: Type[Queen|Rook|Bishop|Knight] ) -> Queen|Knight|Rook|Bishop:
+        """Promote a pawn to a new piece type."""
+        # Validation
+        piece = location.contains()
+        if not isinstance( piece, Pawn ):
+            raise ValueError( f'Attempting to promote a {piece}, not a Pawn!' ) # TODO Add a ChessException for this
+        if location.rank not in ( 1, 8 ):
+            raise ValueError( f'Attempting to promote in an invalid location, {location.key}.' ) # TODO Add a ChessException for this
+
+        if not ( isinstance(piece, Pawn ) ) and \
+        ( ( self.move_to['square'].rank == 1 and self.board.turn == 'dark' ) or \
+          ( self.move_to['square'].rank == 8 and self.board.turn == 'light' ) ):
+            raise ValueError( f'Attempting to promote a Pawn on the wrong turn- {repr(piece)} on {self.board.turn}\'s turn.' ) # TODO Add a ChessException for this
+        # We have a Pawn promotion! Congratulations! 
+        match new_type:
+            case x if x is Queen:
+                new_piece = Queen( self.board.turn )
+            case x if x is Knight:
+                new_piece = Knight( self.board.turn )
+            case x if x is Rook:
+                new_piece = Rook( self.board.turn )
+                self.flag_movement( new_piece )
+            case x if x is Bishop:
+                new_piece = Bishop( self.board.turn )
+            case _:
+                raise ValueError( f'Invalid piece type for Pawn promotion: {new_type}' )
+        return new_piece
 
 class ChessMove(ChessMetaMove):
     """Represents a normal, non-capturing chess move."""
     
-    def __init__(self, board: ChessBoard, from_key: str, to_key: str ):
+    def __init__(self, board: ChessBoard, from_key: str, to_key: str, promotion: Type[Queen|Rook|Bishop|Knight] = Queen ):
         super().__init__( board, from_key, to_key )
         self.piece = self.move_from['square'].contains()
+        self.promotion_type = promotion
 
     def validate_other_constraints( self ) -> bool:
         """Validates constraints for the destination square."""
@@ -133,7 +162,7 @@ class ChessMove(ChessMetaMove):
         """Validation for the actual move, with chess game rule logic"""
 
         # Is the destination in the Piece's movement pattern?
-        if self.move_to['square'] not in [ key for key in self.board.get_legal_moves( self.move_from['key'] ) ]:
+        if self.move_to['square'] not in self.board.get_legal_moves( self.move_from['key'] ):
             # return False
             raise ChessCannotMoveOutsideMovementPatternException( f'Attempting to move {self.piece.name} illegally from {self.move_from["key"]} to {self.move_to["key"]}.' ) 
         # If all of the validation checks pass, return True
@@ -147,6 +176,13 @@ class ChessMove(ChessMetaMove):
             self.board.move_piece(self.move_from['key'], self.move_to['key'] )
             if type(self.piece) in ( Pawn, King, Rook ):
                 self.flag_movement( self.piece )
+            if isinstance(self.piece, Pawn ) and \
+            ( ( self.move_to['square'].rank == 8 and self.board.turn == 'light' ) or \
+              ( self.move_to['square'].rank == 1 and self.board.turn == 'dark' ) ):
+                # We have a Pawn promotion! Congratulations!
+                new_piece = self.promote( self.move_to['square'] , self.promotion_type )
+                self.board.remove_piece( self.move_to['key'] )
+                self.board.place_piece( new_piece, self.move_to['square'].file, self.move_to['square'].rank )
             self.board.end_turn()
 
     def __str__(self):
@@ -157,9 +193,11 @@ class ChessMove(ChessMetaMove):
 
 class ChessCapture(ChessMetaMove):
     """Represents a chess capture move."""
-    def __init__(self, board: ChessBoard, from_key: str, to_key: str ):
+    def __init__(self, board: ChessBoard, from_key: str, to_key: str, promotion: Type[Queen|Rook|Bishop|Knight] = Queen ):
         super().__init__( board, from_key, to_key )
         self.piece = self.move_from['square'].contains()
+        self.promotion_type = promotion
+
 
     def validate_other_constraints(self) -> bool:
         """Validates constraints for the destination square."""
@@ -226,11 +264,17 @@ class ChessCapture(ChessMetaMove):
                 self.board.move_piece(self.move_from['key'], self.move_to['key'])
                 self.flag_movement( self.piece ) # type: ignore because we know the piece is)
                 # self.move_to['square'].occupant.raise_moved_flag() # type: ignore because we know the piece is not None
+            if isinstance(self.piece, Pawn ) and \
+            ( ( self.move_to['square'].rank == 8 and self.board.turn == 'light' ) or \
+              ( self.move_to['square'].rank == 1 and self.board.turn == 'dark' ) ):
+                # We have a Pawn promotion! Congratulations!
+                new_piece = self.promote( self.move_to['square'] , self.promotion_type )
+                self.board.remove_piece( self.move_to['key'] )
+                self.board.place_piece( new_piece, self.move_to['square'].file, self.move_to['square'].rank )
             self.board.end_turn()
             return captured_piece
         else:
             return None
-            # raise ValueError("Invalid capture move.")
 
     def validate_piece_movement( self ) -> bool:
         """Validation for the actual capture, with chess game rule logic"""

@@ -422,6 +422,30 @@ class TestGeneralCaptures(unittest.TestCase):
             move.validate()
         self.board.clear()  # Clear the board for next test
 
+class TestPawnPromotion(unittest.TestCase):
+    def setUp( self ):
+        self.board = ChessBoard()
+
+    def setup_pawn( self, color: str ) -> None:
+        self.board.clear()
+        if color == 'light':
+            rank = 7
+        elif color == 'dark':
+            rank = 2
+        else:
+            raise ValueError( "Color must be 'light' or 'dark'.  {color=}" )
+        file = 'd' # Chosen fairly by meatspace roll of 1d8 applied to a Caesar key.
+        self.board.place_piece( Pawn( color ), file, rank )
+        self.board.turn = color
+
+    def test_valid_default_light_promotion( self ):
+        self.setup_pawn( 'light' )
+
+        move = ChessMove.from_long_notation( self.board, 'd7d8' )
+        self.assertTrue( move.validate() )
+        move.execute()
+        self.assertTrue( self.board['d8'].contains() == Queen( 'light' ) )
+
 class TestCastling(unittest.TestCase):
 
     def setUp(self):
