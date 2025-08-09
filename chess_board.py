@@ -111,7 +111,7 @@ class ChessBoard:
     def __deepcopy__( self, memo ):
         """Create an exact copy of this chess board.  Primarily used for the following purposes:
          - Saving game states
-         - Looking for discovered checks in proposed moces"""
+         - Looking for discovered checks in proposed moves"""
         new_board = ChessBoard()
         for k, v in self.squares.items():
             new_board.squares[k] = deepcopy(v)
@@ -307,11 +307,11 @@ class ChessBoard:
         """Move a piece from one Square to another.
 
         This ls literally just moving the piece, it is not a Chess Move and does not
-        validate game logic or rules.  That will be handled by ChessMove.
+        validate game logic or rules.  That will be handled by ChessMetaMove.
         """
 
         if from_key not in self.squares or to_key not in self.squares:
-            raise ValueError(f"Invalid square keys: {from_key}, {to_key}. Must be in the format 'a1' to 'h8'.")
+            raise ValueError(f"Invalid square keys: {from_key}, {to_key}. Must both be in the format 'a1' to 'h8'.")
         if from_key == to_key:
             raise ValueError(f"Cannot move piece to the same square: {from_key}.")
 

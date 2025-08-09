@@ -177,7 +177,7 @@ class ChessCapture(ChessMetaMove):
         
         Currently this is both checking whether a move even _is_ an en passant attempt and _also_ validating its legality.  We
         don't want to throw Exceptions until this is broken into separate identification (which will not throw) and validation
-        (which will).  For now, continue to return Falso but I have the exceptions here ready for when the logic flow is ready."""
+        (which will).  For now, continue to return False but I have the exceptions here ready for when the logic flow is ready."""
         # Both pieces must be Pawns:
         if not all( ( isinstance(capturing_piece, Pawn), isinstance(captured_piece, Pawn) ) ):
             blocker = self.move_to['square'].contains()
