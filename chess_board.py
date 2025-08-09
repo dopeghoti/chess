@@ -64,19 +64,6 @@ class Square:
         self.occupant = None
         return piece
 
-    # def promote( self, new_piece_class: type[ChessPiece] = Queen ) -> None:
-    #     """If there is a Pawn on square, promote it to a higher piece."""
-    #     # TODO: Move this to the Pawn ChessPiece, and a companion piece into ChessMove
-    #     if self.occupant is None:
-    #         raise ValueError( "Square is empty. Cannot promote a piece.")
-    #     if not isinstance(self.occupant, Pawn):
-    #         raise TypeError( "Only Pawns can be promoted." )
-    #     if not issubclass(new_piece_class, ChessPiece):
-    #         raise TypeError( f"New piece must be a subclass of ChessPiece. Received: {new_piece_class}" )
-    #     if not new_piece_class in [ Queen, Rook, Bishop, Knight ]:
-    #         raise ValueError( f"New piece must be one of Queen, Rook, Bishop, or Knight. Received: {new_piece_class}" )
-    #     self.occupant = new_piece_class(self.occupant.color)
-
     def __str__( self ) -> str:
         fgc = C.WHITE
         if self.color == 'dark':
