@@ -252,36 +252,49 @@ class TestEnPassant(unittest.TestCase):
         self.board.clear()
 
     def test_light_captures_dark_en_passant(self):
+        self.board.setup()
 
-        self.board['e7'].place(Pawn('dark'))
-        self.board['d5'].place(Pawn('light'))
-
-        self.board.move_piece( 'e7', 'e5')
-        self.board['e5'].contains().raise_passant_flag()  # Set the vulnerable flag for en passant
-        self.board['e5'].contains().raise_moved_flag()  # Set the has_moved flag to True
+        move_sequence = [
+            'a2a4',
+            'g8h6',
+            'a4a5',
+            'b7b5',
+            'a5xb5'
+        ]
+        # Set up the en passant capture
+        for move in move_sequence[:-1]:
+            cm = ChessMove.from_long_notation( self.board, move )
+            cm.execute()
         # Now we can capture en passant
-        move = ChessCapture(self.board, 'd5', 'e5')
-        self.assertTrue(move.validate(), "En passant move should be valid")
-        captured = move.execute()
+        cm = ChessMove.from_long_notation( self.board, move_sequence[-1])
+        self.assertIsInstance( cm, ChessCapture )
+        captured = cm.execute()
         self.assertIsNotNone(captured, "Capture should have occurred")
-        self.assertTrue(self.board['e6'].is_occupied(), "Capturing pawn should be on e6")
-        self.assertFalse(self.board['e5'].is_occupied(), "Square e5 should be empty after capture")
+        self.assertTrue(self.board['b6'].is_occupied(), "Capturing pawn should be on e6")
+        self.assertFalse(self.board['b5'].is_occupied(), "Square e5 should be empty after capture")
 
     def test_dark_captures_light_en_passant(self):
-        self.board['d2'].place(Pawn('light'))
-        self.board['e4'].place(Pawn('dark'))
-        self.board.turn = 'dark'  # Set turn to dark for this test
+        self.board.setup()
 
-        self.board.move_piece( 'd2', 'd4' )
-        self.board['d4'].contains().raise_passant_flag()  # Set the vulnerable flag for en passant
-        self.board['d4'].contains().raise_moved_flag()  # Set the has_moved flag to True
+        move_sequence = [
+            'g1h3',
+            'b7b5',
+            'h3g1',
+            'b5b4',
+            'c2c4',
+            'b4c4'
+        ]
+        # Set up the en passant capture
+        for move in move_sequence[:-1]:
+            cm = ChessMove.from_long_notation( self.board, move )
+            cm.execute()
         # Now we can capture en passant
-        move = ChessCapture(self.board, 'e4', 'd4')
-        self.assertTrue(move.validate(), f"En passant move should be valid {self.board.turn=} {move.move_from['square'].contains()= }" )
-        captured = move.execute()
+        cm = ChessMove.from_long_notation( self.board, move_sequence[-1])
+        self.assertIsInstance( cm, ChessCapture )
+        captured = cm.execute()
         self.assertIsNotNone(captured, "Capture should have occurred")
-        self.assertTrue(self.board['d3'].is_occupied(), "Capturing pawn should be on d3")
-        self.assertFalse(self.board['d4'].is_occupied(), "Square d4 should be empty after capture")
+        self.assertTrue(self.board['c3'].is_occupied(), "Capturing pawn should be on e6")
+        self.assertFalse(self.board['c4'].is_occupied(), "Square e5 should be empty after capture")
 
     def test_en_passant_invalid_after_delay(self):
         self.board['e7'].place(Pawn('dark'))
