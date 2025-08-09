@@ -4,6 +4,7 @@ from color import Color
 from chess_board import ChessBoard, Square
 from chess_move import *
 from chess_piece import *
+from chess_exception import *
 
 from unittest import mock
 from io import StringIO
@@ -223,9 +224,11 @@ class TestChessBoard(unittest.TestCase):
         self.board.setup()
         self.board.clear()
         for square in self.board.squares.values():
-            self.assertIsNone(square.occupant)
+            self.assertIsNone(square.contains())
 
-    def test_board_moving_pieces(self):
+    def test_board_moving_pieces(self): 
+        # This is just actually the moving if pieces, not rules validataion.
+        # Simply, can we move a piece from place to place on the board?
         self.board.setup()
         self.board.move_piece( 'a1', 'd4' )
         self.board.move_piece( 'h1', 'e4' )
@@ -290,7 +293,8 @@ class TestEnPassant(unittest.TestCase):
         self.board.end_turn()  # back to dark, vulnerability expired
 
         move = ChessCapture(self.board, 'd5', 'e5' )
-        self.assertFalse(move.validate(), "En passant should be invalid after a turn has passed")
+        with self.assertRaises(ChessCannotCaptureOutsideCapturePatternException):
+            move.validate()
 
     def test_en_passant_invalid_wrong_square(self):
         self.board['e7'].place(Pawn('dark'))
@@ -300,7 +304,8 @@ class TestEnPassant(unittest.TestCase):
         self.board['e5'].occupant.vulnerable = True
 
         move = ChessCapture(self.board,  'c5', 'e5')  # too far
-        self.assertFalse(move.validate(), "En passant should be invalid from non-adjacent file")
+        with self.assertRaises(ChessCannotCaptureOutsideCapturePatternException):
+            move.validate()
 
 class TestGeneralCaptures(unittest.TestCase):
 
@@ -324,7 +329,8 @@ class TestGeneralCaptures(unittest.TestCase):
         self.board['e5'].place(Pawn('dark'))  # Blocking square
 
         move = ChessCapture(self.board, 'e4', 'e5')
-        self.assertFalse(move.validate(), "Pawn cannot capture forward")
+        with self.assertRaises(ChessCannotCaptureOutsideCapturePatternException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_knight_can_capture_over_pieces(self):
@@ -357,7 +363,8 @@ class TestGeneralCaptures(unittest.TestCase):
         self.board['g5'].place(Pawn('dark'))   # Valid capture target
 
         move = ChessCapture(self.board, 'c1', 'g5')
-        self.assertFalse(move.validate(), "Bishop should not capture through obstruction")
+        with self.assertRaises(ChessCannotCaptureOutsideCapturePatternException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_rook_can_capture_clear_path(self):
@@ -377,7 +384,8 @@ class TestGeneralCaptures(unittest.TestCase):
         self.board['a7'].place(Pawn('dark'))   # Valid target beyond obstruction
 
         move = ChessCapture(self.board, 'a1', 'a7')
-        self.assertFalse(move.validate(), "Rook should not capture through blocking piece")
+        with self.assertRaises(ChessCannotCaptureOutsideCapturePatternException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_queen_can_capture_long_range(self):
@@ -397,7 +405,8 @@ class TestGeneralCaptures(unittest.TestCase):
         self.board['h5'].place(Pawn('dark'))
 
         move = ChessCapture(self.board, 'd1', 'h5')
-        self.assertFalse(move.validate(), "Queen should not capture through obstruction")
+        with self.assertRaises(ChessCannotCaptureOutsideCapturePatternException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
 class TestCastling(unittest.TestCase):
@@ -436,7 +445,8 @@ class TestCastling(unittest.TestCase):
         self.setup_king_rook_pair('light', kingside=True)
         self.board['f1'].place(Bishop('light'))
         move = ChessCastle(self.board, 'e1', 'g1')
-        self.assertFalse(move.validate())
+        with self.assertRaises(ChessCannotCastleThroughOccupiedSquaresException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_rook_has_moved_invalidates_castling(self):
@@ -444,7 +454,8 @@ class TestCastling(unittest.TestCase):
         rook = self.board['h8'].contains()
         rook.raise_moved_flag()
         move = ChessCastle(self.board, 'e8', 'g8')
-        self.assertFalse(move.validate())
+        with self.assertRaises(ChessCannotCastleIfRookHasMovedException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_king_has_moved_invalidates_castling(self):
@@ -452,34 +463,39 @@ class TestCastling(unittest.TestCase):
         king = self.board['e1'].contains()
         king.raise_moved_flag()
         move = ChessCastle(self.board, 'e1', 'c1')
-        self.assertFalse(move.validate())
+        with self.assertRaises(ChessCannotCastleIfKingHasMovedException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_king_is_in_check(self):
         self.setup_king_rook_pair('light', kingside=True)
         self.board['e8'].place(Queen('dark'))  # Queen checks e1
         move = ChessCastle(self.board, 'e1', 'g1')
-        self.assertFalse(move.validate())
+        with self.assertRaises(ChessCannotCastleOutOfCheckException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_king_moves_through_check(self):
         self.setup_king_rook_pair('dark', kingside=True)
         self.board['f1'].place(Queen('light'))  # Queen attacks f8
         move = ChessCastle(self.board, 'e8', 'g8')
-        self.assertFalse(move.validate())
+        with self.assertRaises(ChessCannotCastleIntoCheckException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_king_destination_square_under_attack(self):
         self.setup_king_rook_pair('dark', kingside=True)
         self.board['g1'].place(Queen('light'))  # Queen attacks g8
         move = ChessCastle(self.board, 'e8', 'g8')
-        self.assertFalse(move.validate())
+        with self.assertRaises(ChessCannotCastleIntoCheckException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
     def test_invalid_target_square(self):
         self.setup_king_rook_pair('light', kingside=True)
         move = ChessCastle(self.board, 'e1', 'f1')  # Not a valid castle target
-        self.assertFalse(move.validate())
+        with self.assertRaises(ChessCannotCastleIntoInvalidDestinationException):
+            move.validate()
         self.board.clear()  # Clear the board for next test
 
 #class TestDiscoveredChecks( unittest.TestCase ):
