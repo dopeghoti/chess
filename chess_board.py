@@ -242,10 +242,8 @@ class ChessBoard:
 
         # Okay, now we have a list of presumable legal moves.  For each one, we need to
         # see if it would be a discovered check and, if so, remove it from the list.
-        for possible_move in list( set( possible_moves ) ): # strip duplicate possible moves
-            if self.is_discovered_check( square_key, possible_move.key, False ):
-                pass
-            else:
+        for possible_move in possible_moves:
+            if not self.is_discovered_check( square_key, possible_move.key, False ):
                 legal_moves.append( possible_move )
         return list(set(legal_moves))
 
@@ -296,9 +294,7 @@ class ChessBoard:
         # Okay, now we have a list of presumable legal captures.  For each one, we need to
         # see if it would be a discovered check and, if so, remove it from the list.
         for possible_capture in list( set( possible_captures ) ): # strip duplicate possible moves
-            if self.is_discovered_check( square_key, possible_capture.key, True ):
-                pass
-            else:
+            if not self.is_discovered_check( square_key, possible_capture.key, True ):
                 legal_captures.append( possible_capture )
         # Remove duplicates and return the list of legal captures
         return list(set(legal_captures))
