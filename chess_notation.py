@@ -1,5 +1,5 @@
 from chess_piece import *
-from chess_board import ChessBoard
+from chess_board import ChessBoard, Square
 from chess_move import ChessMove, ChessCapture, ChessCastle, ChessMetaMove as CM
 from typing import Optional, Union
 from chess_exception import *
@@ -55,10 +55,11 @@ class ChessNotationConverter:
         is_actual_capture = target_piece is not None
 
         # Check for en passant (pawn capturing to empty square diagonally)
-        if isinstance(piece, Pawn) and not is_actual_capture:
-            file_diff = abs(ord(from_square[0]) - ord(to_square[0]))
-            if file_diff == 1:  # Diagonal move to empty square = en passant
-                is_actual_capture = True
+        # Note from later me: this is invalid: en passant DOES specify the occupied to_square
+        #if isinstance(piece, Pawn) and not is_actual_capture:
+        #    file_diff = abs(ord(from_square[0]) - ord(to_square[0]))
+        #    if file_diff == 1:  # Diagonal move to empty square = en passant
+        #        is_actual_capture = True
 
         # Build the notation
         notation_parts = []
@@ -77,10 +78,18 @@ class ChessNotationConverter:
         # Add destination square
         notation_parts.append(to_square)
 
-        # TODO: Add promotion notation (=Q, =R, etc.) when promotion is implemented
+        # DONE: Add promotion notation (=Q, =R, etc.) when promotion is implemented
         # TODO: Add check (+) and checkmate (#) indicators
 
+        if self._is_promotion( piece, self.board[to_square] ):
+            notation_parts.append( '=' + self.promotion_piece.symbol )
+
         return ''.join(notation_parts)
+
+    def _is_promotion( self, piece: ChessPiece, to_square: Square ) -> bool:
+        """Infers if a move  represents pawn promotion based on piece type and final location"""
+        promotion_rank = 1 if piece.color == 'dark' else 8
+        return  to_square.rank == promotion_rank and isinstance( piece, Pawn )
 
     def _check_castling(self, from_square: str, to_square: str) -> Optional[str]:
         """Check if this move represents castling and return appropriate notation"""
@@ -232,6 +241,21 @@ class ChessNotationConverter:
         # Clean and parse the input
         clean_notation = long_notation.replace(' ', '').lower()
         
+        self.promotion_piece = Queen  # default promotion piece type
+        if '=' in clean_notation:
+            main_part, promotion_part = clean_notation.split('=')
+            symbol_map = {
+                Queen.symbol: Queen,
+                Rook.symbol: Rook,
+                Bishop.symbol: Bishop,
+                Knight.symbol: Knight
+            }
+            if promotion_part.upper() in symbol_map:
+                self.promotion_piece = symbol_map[promotion_part]
+            else:
+                raise ValueError( f'Attempting to promote into unknown piece: {promotion_part=}.' )
+            clean_notation = main_part
+
         # Handle extended long notation (e.g., 'f4xg5')
         if 'x' in clean_notation:
             parts = clean_notation.split('x')
@@ -264,15 +288,17 @@ class ChessNotationConverter:
         is_capture = target_piece is not None
 
         # Check for en passant (pawn capturing to empty square diagonally)
-        if isinstance(piece, Pawn) and not is_capture:
-            file_diff = abs(ord(from_square[0]) - ord(to_square[0]))
-            if file_diff == 1:  # Diagonal move to empty square = en passant
-                is_capture = True
+        # Note from later me: This is wrong and unnecessary: correct notation of en passant
+        # captures DO specifiy a to_square that is occupied.
+        #if isinstance(piece, Pawn) and not is_capture:
+        #    file_diff = abs(ord(from_square[0]) - ord(to_square[0]))
+        #    if file_diff == 1:  # Diagonal move to empty square = en passant
+        #        is_capture = True
 
         if is_capture:
-            return ChessCapture(self.board, from_square, to_square)
+            return ChessCapture(self.board, from_square, to_square, self.promotion_piece )
         else:
-            return ChessMove(self.board, from_square, to_square)
+            return ChessMove(self.board, from_square, to_square, self.promotion_piece )
 
 # # Extension to ChessMetaMove for algebraic notation support
 # class ChessMetaMoveExtensions:
