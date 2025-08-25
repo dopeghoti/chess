@@ -74,7 +74,7 @@ class ChessMetaMove():
             # return False
             raise ChessCannotMoveToOriginSquareException( f'Attempting to move from a square to itself, namely {self.move_from["key"]}.')
 
-        if not self.move_from['square'].is_occupied():
+        if not self.move_from['square'].is_occupied:
             # return False
             raise ChessCannotMoveFromEmptySquareException( f'Attempting to move from empty square at {self.move_from["key"]}.' )
             # raise ValueError(f'No piece on {self.from_square} to move.')
@@ -151,7 +151,7 @@ class ChessMove(ChessMetaMove):
 
     def validate_other_constraints( self ) -> bool:
         """Validates constraints for the destination square."""
-        if self.move_to['square'].is_occupied():
+        if self.move_to['square'].is_occupied:
             # return False
             piece = self.move_from['square'].contains()
             blocker = self.move_to['square'].contains()
@@ -201,7 +201,7 @@ class ChessCapture(ChessMetaMove):
 
     def validate_other_constraints(self) -> bool:
         """Validates constraints for the destination square."""
-        if not self.move_to['square'].is_occupied():
+        if not self.move_to['square'].is_occupied:
             # return False
             raise ChessCannotCaptureIntoEmptySquareException( f'Cannot capture from empty square at {self.move_to["key"]}.' )
         if self.move_to['square'].contains().color == self.piece.color: # type: ignore because we know the colors are not None
@@ -232,7 +232,7 @@ class ChessCapture(ChessMetaMove):
         # The space behind the captured Pawn must be empty:
         final_rank = self.move_to['square'].rank + capturing_piece.direction # type: ignore
         final_square_key = f"{self.move_to['square'].file}{final_rank}"
-        if self.board.squares[final_square_key].is_occupied():
+        if self.board.squares[final_square_key].is_occupied:
             blocker = self.board[final_square_key].contains()
             # raise ChessCannotCaptureEnPassantWhenFinalSquareNotEmptyException( f'Somehow a {blocker.name} is occupying destination square {final_square_key}.' )
             return False
@@ -325,12 +325,12 @@ class ChessCastle(ChessMetaMove):
                 # return False
                 raise ChessCannotCastleIntoInvalidDestinationException( f'Attempting illegal castle from {self.move_from["key"]} to {self.move_to["key"]}.' )
             if self.move_to['key'] == 'g1':
-                if self.board['f1'].is_occupied():
+                if self.board['f1'].is_occupied:
                     # return False
                     raise ChessCannotCastleThroughOccupiedSquaresException( 'Cannot castle through occupied square f1.' )
                 rook_key = 'h1'
             elif self.move_to['key'] == 'c1':
-                if any( ( self.board['b1'].is_occupied(), self.board['c1'].is_occupied(), self.board['d1'].is_occupied() ) ):
+                if any( ( self.board['b1'].is_occupied, self.board['c1'].is_occupied, self.board['d1'].is_occupied ) ):
                     # return False
                     raise ChessCannotCastleThroughOccupiedSquaresException( 'Cannot castle through occupied squares b1, c1.' )
                 rook_key = 'a1'
@@ -342,12 +342,12 @@ class ChessCastle(ChessMetaMove):
                 # return False
                 raise ChessCannotCastleIntoInvalidDestinationException( f'Attempting illegal castle from {self.move_from["key"]} to {self.move_to["key"]}.' )
             if self.move_to['key'] == 'g8':
-                if self.board['f8'].is_occupied():
+                if self.board['f8'].is_occupied:
                     # return False
                     raise ChessCannotCastleThroughOccupiedSquaresException( 'Cannot castle through occupied square f8.' )
                 rook_key = 'h8'
             elif self.move_to['key'] == 'c8':
-                if any( ( self.board['b8'].is_occupied(), self.board['c8'].is_occupied(), self.board['d8'].is_occupied() ) ):
+                if any( ( self.board['b8'].is_occupied, self.board['c8'].is_occupied, self.board['d8'].is_occupied ) ):
                     # return False
                     raise ChessCannotCastleThroughOccupiedSquaresException( 'Cannot castle through occupied squares b8, b8.' )
                 rook_key = 'a8'

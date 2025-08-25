@@ -13,12 +13,12 @@ class ChessNotationConverter:
 
     def long_to_algebraic(self, long_notation: str) -> str:
         """Convert long notation (e.g., 'e2e4', 'b1c3') to algebraic notation (e.g., 'e4', 'Nc3')
-        
+
         Also handles extended long notation like 'f4xg5' by parsing it appropriately.
         """
         # Clean and parse the input
         clean_notation = long_notation.replace(' ', '').lower()
-        
+
         # Handle extended long notation (e.g., 'f4xg5')
         if 'x' in clean_notation:
             parts = clean_notation.split('x')
@@ -240,7 +240,7 @@ class ChessNotationConverter:
         """Create the appropriate ChessMove object from long algebraic notation"""
         # Clean and parse the input
         clean_notation = long_notation.replace(' ', '').lower()
-        
+
         self.promotion_piece = Queen  # default promotion piece type
         if '=' in clean_notation:
             main_part, promotion_part = clean_notation.split('=')
@@ -303,13 +303,13 @@ class ChessNotationConverter:
 # # Extension to ChessMetaMove for algebraic notation support
 # class ChessMetaMoveExtensions:
 #     """Mixin or extension methods that could be added to ChessMetaMove"""
-#     
+#
 #     @staticmethod
 #     def from_long_notation(board: ChessBoard, long_notation: str) -> Union[ChessMove, ChessCapture, ChessCastle]:
 #         """Factory method to create appropriate move from long notation"""
 #         converter = ChessNotationConverter(board)
 #         return converter.create_move_from_long_notation(long_notation)
-#     
+#
 #     def to_algebraic_notation(self) -> str:
 #         """Convert this move to algebraic notation"""
 #         converter = ChessNotationConverter(self.board)
@@ -330,35 +330,35 @@ def demo_enhanced_converter():
         'g1f3',      # Should become 'Nf3'
         'f1c4',      # Should become 'Bc4'
     ]
-    
+
     for move in test_moves:
         try:
             algebraic = converter.long_to_algebraic(move)
             print(f"{move} -> {algebraic}")
-            
+
             # Test round trip
             long_back = converter.algebraic_to_long(algebraic)
             print(f"  Round trip: {algebraic} -> {long_back}")
         except Exception as e:
             print(f"{move} -> Error: {e}")
-    
+
     print("\n=== Extended Long Notation ===")
     # Set up a capture scenario
     board.clear()
     board.place_piece(Pawn('light'), 'f', 4)
     board.place_piece(Pawn('dark'), 'g', 5)
     board.turn = 'light'
-    
+
     try:
         # Test extended notation: f4xg5
         algebraic = converter.long_to_algebraic('f4xg5')
         print(f"f4xg5 -> {algebraic}")
     except Exception as e:
         print(f"f4xg5 -> Error: {e}")
-    
+
     print("\n=== Move Object Creation ===")
     board.setup()
-    
+
     test_notations = ['e2e4', 'b1c3', 'e1g1']  # Move, capture, castle
     for notation in test_notations:
         try:

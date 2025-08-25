@@ -1,7 +1,9 @@
 from chess_piece import *
 from color import Color as C
 from copy import copy, deepcopy
-from typing import Optional
+from typing import Optional, TypeVar
+
+CP = TypeVar( 'CP', bound = 'ChessPiece' )
 
 class Square:
     def __init__(self, color: Optional[str] = None, file: Optional[str] = None, rank: Optional[int] = None ):
@@ -37,18 +39,19 @@ class Square:
             deepcopy( self.file, memo ),
             deepcopy( self.rank, memo )
         )
-        if self.is_occupied():
+        if self.is_occupied:
             new_square.occupant = deepcopy( self.occupant, memo )
         return new_square
 
+    @property
     def is_occupied(self) -> bool:
         """Check if the square is occupied by a chess piece."""
         return self.occupant is not None
 
-    def contains(self) -> Optional[ChessPiece]:
+    def contains(self) -> Optional[CP]:
             return self.occupant
 
-    def place( self, piece: ChessPiece ) -> None:
+    def place( self, piece: CP ) -> None:
         """place a chess piece on the square."""
         if self.occupant is not None:
             raise ValueError( f"Square is already occupied with a {self.occupant}. Cannot place another piece.")
@@ -56,7 +59,7 @@ class Square:
             raise TypeError( f"Only ChessPiece objects can be placed on a square. Received: {type(piece)}")
         self.occupant = piece
 
-    def remove( self ) -> ChessPiece:
+    def remove( self ) -> CP:
         """Remove the chess piece from the square."""
         if self.occupant is None:
             raise ValueError( "Square is empty. Cannot remove a piece.")
@@ -143,18 +146,18 @@ class ChessBoard:
         self.game_states[ ( self.turns, self.turn ) ] = deepcopy( self )
         self.turn = 'light' if self.turn == 'dark' else 'dark'
 
-    def place_piece(self, piece: ChessPiece, file: str, rank: int) -> None:
+    def place_piece(self, piece: CP, file: str, rank: int) -> None:
         """place a chess piece on the board at the specified file and rank."""
         square_key = f"{file.lower()}{rank}"
         if square_key not in self.squares:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         self.squares[square_key].place(piece)
 
-    def remove_piece(self, key: str) -> ChessPiece:
+    def remove_piece(self, key: str) -> CP:
         """Remove a chess piece from the board at the specified file and rank."""
         if key not in self.squares:
             raise ValueError(f"Invalid square: {key}. Must be in the format 'a1' to 'h8'.")
-        if self.squares[key].is_occupied():
+        if self.squares[key].is_occupied:
             return self.squares[key].remove()
         else:
             raise ValueError(f"No piece on {key} to remove.")
@@ -165,7 +168,7 @@ class ChessBoard:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
         return self.squares[square_key]
 
-    def get_piece(self, square_key: str) -> Optional[ChessPiece]:
+    def get_piece(self, square_key: str) -> Optional[CP]:
         """Get the chess piece at the specified square."""
         if square_key not in self.squares:
             raise ValueError(f"Invalid square: {square_key}. Must be in the format 'a1' to 'h8'.")
@@ -230,13 +233,13 @@ class ChessBoard:
                     break
                 target_square = self.squares[f'{chr(current_file_ord)}{current_rank}']
 
-                if target_square.is_occupied():
+                if target_square.is_occupied:
                     # The path is blocked by a piece, and so we
                     break
 
                 possible_moves.append( target_square )
 
-                if not piece.is_sliding_piece():
+                if not piece.is_sliding_piece:
                     # No further squares in this direction to check, and so we
                     break
 
@@ -268,30 +271,30 @@ class ChessBoard:
                 target_square_key = f"{chr(target_file_ord)}{target_rank}"
                 target_square = self.squares[target_square_key]
                 if target_square is not None:
-                    if target_square.is_occupied() and target_square.contains().color != piece.color:
+                    if target_square.is_occupied and target_square.contains().color != piece.color:
                         captured_piece = self[target_square_key].contains()
                         # If we are capturing with a Pawn, and the capture is en passant,
                         # we need to check if the target square is vulnerable
                         if isinstance( piece, Pawn ) and isinstance ( captured_piece, Pawn ) and capture in [ ( -1, 0 ), ( 1, 0 ) ]:
-                            if captured_piece.is_vulnerable():
+                            if captured_piece.is_vulnerable:
                                 # Check to see if the square behind the target square is empty
                                 final_rank = target_rank + piece.direction
                                 final_square_key = f"{target_square_key[0]}{final_rank}"
-                                if not self.squares[final_square_key].is_occupied():
+                                if not self.squares[final_square_key].is_occupied:
                                     possible_captures.append(target_square)
                         else:
                             possible_captures.append(target_square)
-            if piece.is_sliding_piece():
+            if piece.is_sliding_piece:
                 # For sliding pieces, we need to check all squares in the direction of capture
                 step_file_ord = ord(square_key[0]) + capture[0]
                 step_rank = int(square_key[1]) + capture[1]
                 while 97 <= step_file_ord <= 104 and 1 <= step_rank <= 8:
                     step_square_key = f"{chr(step_file_ord)}{step_rank}"
                     step_square = self.squares[step_square_key]
-                    if step_square.is_occupied() and step_square.contains().color != piece.color:
+                    if step_square.is_occupied and step_square.contains().color != piece.color:
                         possible_captures.append(step_square)
                         break
-                    elif step_square.is_occupied():
+                    elif step_square.is_occupied:
                         break
                     step_file_ord += capture[0]
                     step_rank += capture[1]
@@ -322,9 +325,9 @@ class ChessBoard:
 
         if not all( ( isinstance(from_square, Square), isinstance(to_square, Square) ) ):
             raise TypeError("from_square and to_square must be instances of Square.")
-        if not from_square.is_occupied():
+        if not from_square.is_occupied:
             raise ValueError(f"No piece on {from_square} to move.")
-        if to_square.is_occupied():
+        if to_square.is_occupied:
             raise ValueError(f"Cannot move to {to_square}. It is already occupied by {to_square.contains()}.")
 
         to_square.place( from_square.remove() )
@@ -332,7 +335,7 @@ class ChessBoard:
     def clear(self):
         """Reset the chess board by removing all pieces."""
         for square in self.squares.values():
-            if square.is_occupied():
+            if square.is_occupied:
                 square.remove()
 
     def setup(self):
@@ -401,7 +404,7 @@ class ChessBoard:
 
             # For all other pieces (sliding and non-sliding like King/Knight)
             if (file_dir, rank_dir) in piece.get_capture_pattern():
-                if not piece.is_sliding_piece():
+                if not piece.is_sliding_piece:
                     # For King/Knight, the offset must be exact
                     if (file_offset, rank_offset) in piece.get_capture_pattern():
                         return True
@@ -430,7 +433,7 @@ class ChessBoard:
         # Check each square in the path (excluding the target itself)
         while( current_file_ord != ord(to_square.file) or current_rank != to_square.rank ) and ( 0 < current_rank < 9 ) and ( 96 < current_file_ord < 105 ):
               current_square_key = f'{chr(current_file_ord)}{current_rank}'
-              if self.squares[current_square_key].is_occupied():
+              if self.squares[current_square_key].is_occupied:
                   return False # Path is blocked
               current_file_ord += file_step
               current_rank += rank_step

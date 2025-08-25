@@ -1,7 +1,8 @@
+from abc import ABC, abstractmethod
 from typing import Optional
 from copy import deepcopy
 
-class ChessPiece:
+class ChessPiece(ABC):
     """It should be noted that because we're (trying to) use the Unicode
     glyphs for terminal representation of chess pieces, the light
     pieces will appear dark and vice-versa.  However, just flipping
@@ -15,7 +16,7 @@ class ChessPiece:
             'light' : '¡',
             'dark'  : '!' }
     symbol = 'X' # For usage in move notation; should be overridden by subclass
-    
+
     def __init__(self, color: Optional[str] = None ):
         """Meant to be superceded by a subclass for each type of piece."""
         if color is None:
@@ -45,7 +46,8 @@ class ChessPiece:
 
     def __hash__( self ) -> int:
         return hash( ( self.color, self.name ) )
-    
+
+    @abstractmethod
     def get_move_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Returns a list of (file_offset, rank_offset) tuples for valid movement pattern.
 
@@ -53,7 +55,7 @@ class ChessPiece:
         Positive rank_offset means moving toward 8; negative toward 1.
 
         These are _relative_ movement directions."""
-        raise NotImplementedError( 'Must be implemented by ChessPiece subclasses.' )
+        # raise NotImplementedError( 'Must be implemented by ChessPiece subclasses.' )
 
     def get_capture_pattern( self ) -> list[ tuple[ int, int ] ]:
         """Returns a list of (file_offset, rank_offset) tuples for valid capture / attack locations.
@@ -61,12 +63,14 @@ class ChessPiece:
         For most pieces this is identical to the movement pattern; pawns are, shall we say, Special."""
         return self.get_move_pattern()
 
+    @property
     def is_sliding_piece( self ) -> bool:
         """Return True if the piece can move an arbitrary number of squares in a direction.
 
         Used to determine if path-clearing logic is needed.  Only for Rook, Bishop, and Queen."""
         return False
-    
+
+    @property
     def is_vulnerable( self ) -> bool:
         """Return True if the piece is vulnerable to en passant capture."""
         if hasattr( self, 'vulnerable' ):
@@ -91,7 +95,7 @@ class ChessPiece:
             # Don't raise this exception, just return for pieces that don't care about this.
             # raise AttributeError( f"{self} does not have a 'has_moved' attribute." )
             pass
-    
+
     def raise_passant_flag( self ) -> None:
         """Set the vulnerable flag to True.  This is used for en passant."""
         if hasattr( self, 'vulnerable' ):
@@ -100,7 +104,7 @@ class ChessPiece:
             # Don't raise this exception, just return for pieces that don't care about this.
             # raise AttributeError( f"{self} does not have a 'vulnerable' attribute." )
             pass
-        
+
     def lower_passant_flag( self ) -> None:
         """Set the vulnerable flag to False.  This is used for en passant."""
         if hasattr( self, 'vulnerable' ):
@@ -151,6 +155,7 @@ class Rook(ChessPiece):
         super().__init__(color)
         self.has_moved = False  # Track whether the rook has moved for castling purposes
 
+    @property
     def is_sliding_piece( self ) -> bool:
         """Rooks can slide."""
         return True
@@ -197,6 +202,7 @@ class Bishop(ChessPiece):
     def __init__(self, color: str):
         super().__init__(color)
 
+    @property
     def is_sliding_piece( self ) -> bool:
         """Bishops can slide."""
         return True
@@ -220,6 +226,7 @@ class Queen(ChessPiece):
     def __init__(self, color: str):
         super().__init__(color)
 
+    @property
     def is_sliding_piece( self ) -> bool:
         """Queens can slide."""
         return True
